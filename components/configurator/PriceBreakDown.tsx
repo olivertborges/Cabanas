@@ -1,6 +1,6 @@
 'use client'
 
-import { PriceBreakdown as PriceBreakdownType } from '@/utils/priceCalculator'
+import { PriceBreakDown as PriceBreakdownType } from '@/utils/priceCalculator'
 
 interface PriceBreakdownProps {
   prices: PriceBreakdownType
