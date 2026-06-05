@@ -5,13 +5,14 @@ import FinishTypeSelector from './FinishTypeSelector'
 import SizeSelector from './SizeSelector'
 import OptionsPanel from './OptionsPanel'
 import PriceBreakDown from './PriceBreakDown'
+import InteractiveFloorPlan from './InteractiveFloorPlan'
 import { ConfigOptions, FinishType, calculatePrice, getUSDtoUYU, convertToUYU } from '@/utils/priceCalculator'
 import { getWhatsAppLink } from '@/utils/whatsapp'
 import { generatePDFBlob } from '@/utils/pdfGenerator'
 import { Download, Send } from 'lucide-react'
-import InteractiveFloorPlan from './InteractiveFloorPlan'
 
-const steps = ['Tipo de entrega', 'Tamaño', 'Personalización', 'Plano', 'Resumen']
+// Nuevo orden: 1. Tamaño, 2. Tipo de entrega, 3. Personalización, 4. Plano, 5. Resumen
+const steps = ['Tamaño', 'Tipo de entrega', 'Personalización', 'Plano', 'Resumen']
 
 export default function ConfiguratorWizard() {
   const [currentStep, setCurrentStep] = useState(0)
@@ -86,15 +87,22 @@ export default function ConfiguratorWizard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Configurador */}
         <div className="lg:col-span-2 space-y-8">
+          {/* Paso 1: Tamaño */}
           {currentStep === 0 && (
-            <FinishTypeSelector finishType={finishType} setFinishType={handleFinishTypeChange} />
-          )}
-          {currentStep === 1 && (
             <SizeSelector options={options} setOptions={setOptions} />
           )}
+          
+          {/* Paso 2: Tipo de entrega */}
+          {currentStep === 1 && (
+            <FinishTypeSelector finishType={finishType} setFinishType={handleFinishTypeChange} />
+          )}
+          
+          {/* Paso 3: Personalización */}
           {currentStep === 2 && (
             <OptionsPanel options={options} setOptions={setOptions} finishType={finishType} />
           )}
+          
+          {/* Paso 4: Plano interactivo */}
           {currentStep === 3 && (
             <div>
               <h3 className="text-2xl font-bold mb-4">Diseñá la distribución</h3>
@@ -104,12 +112,14 @@ export default function ConfiguratorWizard() {
               <InteractiveFloorPlan options={options} />
             </div>
           )}
+          
+          {/* Paso 5: Resumen */}
           {currentStep === 4 && (
             <div className="space-y-6">
               <h3 className="text-2xl font-bold">Resumen de tu cabaña</h3>
               <div className="bg-gray-50 p-6 rounded-lg space-y-3">
-                <p><strong>🔨 Tipo de entrega:</strong> {finishType === 'llave_en_mano' ? 'Llave en mano 🏠' : 'Semiterminada 🔨'}</p>
                 <p><strong>📐 Tamaño:</strong> {options.size === 'custom' && options.customSize ? `6x${options.customSize} (${6 * options.customSize} m²)` : options.size}</p>
+                <p><strong>🔨 Tipo de entrega:</strong> {finishType === 'llave_en_mano' ? 'Llave en mano 🏠' : 'Semiterminada 🔨'}</p>
                 {options.extras.includes('platea_hormigon') && <p><strong>🏗️ Platea de hormigón:</strong> Incluida</p>}
                 {options.extras.includes('pozo_negro') && <p><strong>💧 Pozo negro:</strong> Incluido</p>}
                 {options.extras.includes('alero') && options.aleroMetros && options.aleroMetros > 0 && (

@@ -6,6 +6,7 @@ import { Home, Building2, CheckCircle, XCircle } from 'lucide-react'
 interface FinishTypeSelectorProps {
   finishType: FinishType
   setFinishType: (type: FinishType) => void
+  currentSize?: string  // ← Nueva prop
 }
 
 export default function FinishTypeSelector({ finishType, setFinishType }: FinishTypeSelectorProps) {

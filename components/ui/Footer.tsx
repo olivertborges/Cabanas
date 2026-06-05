@@ -31,15 +31,15 @@ export default function Footer() {
             <ul className="space-y-2">
               <li className="flex items-center space-x-2">
                 <Phone size={18} />
-                <span>+598 99 999 999</span>
+                <span>+598 97 741 459</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Mail size={18} />
-                <span>info@cabanas.com.uy</span>
+                <span>cabanasrodriguez@gmail.com</span>
               </li>
               <li className="flex items-center space-x-2">
                 <MapPin size={18} />
-                <span>Punta del Este, Uruguay</span>
+                <span>Montevideo, Uruguay</span>
               </li>
             </ul>
           </div>
@@ -48,15 +48,14 @@ export default function Footer() {
           <div>
             <h3 className="text-xl font-bold mb-4">Seguinos</h3>
             <div className="flex space-x-4">
-              <a href="#" className="hover:text-secondary transition"><Facebook size={24} /></a>
-              <a href="#" className="hover:text-secondary transition"><Instagram size={24} /></a>
-              <a href="#" className="hover:text-secondary transition"><Twitter size={24} /></a>
+              <a href="https://www.facebook.com/cabanasrodriguezas/" className="hover:text-secondary transition"><Facebook size={24} /></a>
+              <a href="https://www.instagram.com/casasprefabricadas.uy?igsh=OTNkaDllbHEyeGZ4" className="hover:text-secondary transition"><Instagram size={24} /></a>
             </div>
           </div>
         </div>
 
         <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
-          <p>&copy; 2024 Cabañas Personalizadas - Todos los derechos reservados</p>
+          <p>&copy; 2026 Cabañas Personalizadas - Todos los derechos reservados</p>
         </div>
       </div>
     </footer>
