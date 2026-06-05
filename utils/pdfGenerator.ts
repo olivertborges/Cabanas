@@ -2,7 +2,7 @@ import { ConfigOptions, PriceBreakDown } from './priceCalculator'
 
 export function generatePDFBlob(
   options: ConfigOptions,
-  prices: PriceBreakdown,
+  prices: PriceBreakDown,
   totalUSD: number,
   totalUYU: number
 ): void {
