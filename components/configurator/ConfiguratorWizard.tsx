@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import SizeSelector from './SizeSelector'
 import OptionsPanel from './OptionsPanel'
-import PriceBreakdown from './PriceBreakdown'
+import PriceBreakdown from './PriceBreakDown'
 import DynamicFloorPlan from './DynamicFloorPlan'
 import { ConfigOptions, calculatePrice, getUSDtoUYU, convertToUYU } from '@/utils/priceCalculator'
 import { getWhatsAppLink } from '@/utils/whatsapp'
