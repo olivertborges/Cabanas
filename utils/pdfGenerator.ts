@@ -1,4 +1,4 @@
-import { ConfigOptions, PriceBreakdown } from './priceCalculator'
+import { ConfigOptions, PriceBreakDown } from './priceCalculator'
 
 export function generatePDFBlob(
   options: ConfigOptions,
