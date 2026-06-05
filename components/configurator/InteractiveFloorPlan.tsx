@@ -21,7 +21,7 @@ interface InteractiveFloorPlanProps {
 }
 
 const roomColors: Record<string, string> = {
-  'Dormitorio': '#86efac', // Colores un poco más vivos para el 3D
+  'Dormitorio': '#86efac',
   'Baño': '#fef08a',
   'Cocina': '#fbcfe8',
   'Living': '#bae6fd',
@@ -66,24 +66,43 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
   
   const cabinWidth = 6 
   const cabinLength = getCabinLength()
-  const scale = 60 // Un poco más grande para mejor usabilidad
+  const scale = 55 // Ajustado para un calce óptimo en celulares
   
   const svgWidth = cabinWidth * scale + 40
   const svgHeight = cabinLength * scale + 40
   
-  // Handlers de interacción 2D
-  const handleMouseDown = (roomId: string, e: React.MouseEvent) => {
+  // Extrae la coordenada X e Y sin importar si viene de Mouse o Touch
+  const getClientCoords = (e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) {
+      if (e.touches.length === 0) return null
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    }
+    return { x: e.clientX, y: e.clientY }
+  }
+
+  // Handlers para Mover Habitación (Soporta ambos entornos)
+  const handleStartDrag = (roomId: string, e: React.MouseEvent | React.TouchEvent) => {
+    // Si es touch, prevenimos que la pantalla haga scroll involuntario
+    if (e.cancelable) e.preventDefault()
     e.stopPropagation()
+    
+    const coords = getClientCoords(e)
+    if (!coords) return
+
     setSelectedRoom(roomId)
     setIsDragging(true)
-    setDragStart({ x: e.clientX, y: e.clientY })
+    setDragStart({ x: coords.x, y: coords.y })
   }
   
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMoveDrag = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDragging || !selectedRoom) return
+    if (e.cancelable) e.preventDefault()
     
-    const dx = (e.clientX - dragStart.x) / scale
-    const dy = (e.clientY - dragStart.y) / scale
+    const coords = getClientCoords(e)
+    if (!coords) return
+    
+    const dx = (coords.x - dragStart.x) / scale
+    const dy = (coords.y - dragStart.y) / scale
     
     setRooms(rooms.map(room => {
       if (room.id === selectedRoom) {
@@ -93,28 +112,38 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
       }
       return room
     }))
-    setDragStart({ x: e.clientX, y: e.clientY })
+    setDragStart({ x: coords.x, y: coords.y })
   }
   
-  const handleMouseUp = () => {
+  const handleEndInteraction = () => {
     setIsDragging(false)
     setResizing(null)
     setResizeEdge(null)
     if (onUpdate) onUpdate(rooms)
   }
   
-  const startResize = (roomId: string, edge: string, e: React.MouseEvent) => {
+  // Handlers para Redimensionar Habitación (Soporta ambos entornos)
+  const handleStartResize = (roomId: string, edge: string, e: React.MouseEvent | React.TouchEvent) => {
+    if (e.cancelable) e.preventDefault()
     e.stopPropagation()
+    
+    const coords = getClientCoords(e)
+    if (!coords) return
+
     setResizing(roomId)
     setResizeEdge(edge)
-    setDragStart({ x: e.clientX, y: e.clientY })
+    setDragStart({ x: coords.x, y: coords.y })
   }
   
-  const handleResizeMove = (e: React.MouseEvent) => {
+  const handleMoveResize = (e: React.MouseEvent | React.TouchEvent) => {
     if (!resizing || !resizeEdge) return
+    if (e.cancelable) e.preventDefault()
     
-    const dx = (e.clientX - dragStart.x) / scale
-    const dy = (e.clientY - dragStart.y) / scale
+    const coords = getClientCoords(e)
+    if (!coords) return
+    
+    const dx = (coords.x - dragStart.x) / scale
+    const dy = (coords.y - dragStart.y) / scale
     
     setRooms(rooms.map(room => {
       if (room.id === resizing) {
@@ -131,7 +160,7 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
       }
       return room
     }))
-    setDragStart({ x: e.clientX, y: e.clientY })
+    setDragStart({ x: coords.x, y: coords.y })
   }
   
   const addRoom = (type: typeof roomTypes[0]) => {
@@ -159,61 +188,63 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
   const cabinArea = cabinWidth * cabinLength
   const freeArea = cabinArea - totalArea
   
-  const handleGlobalMouseMove = (e: React.MouseEvent) => {
-    if (resizing) handleResizeMove(e)
-    else if (isDragging) handleMouseMove(e)
+  // Enrutador global de movimientos tanto táctil como de mouse
+  const handleGlobalMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (resizing) handleMoveResize(e)
+    else if (isDragging) handleMoveDrag(e)
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 select-none">
       {/* Selector de Vistas / Pestañas */}
       <div className="flex border-b border-gray-200 justify-between items-center">
-        <div className="flex gap-4">
+        <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('2d')}
-            className={`py-2 px-4 font-semibold text-sm border-b-2 transition ${
-              activeTab === '2d' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            className={`flex-1 sm:flex-none py-2.5 px-3 text-center font-semibold text-xs sm:text-sm border-b-2 transition ${
+              activeTab === '2d' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500'
             }`}
           >
             📐 Plano 2D (Editar)
           </button>
           <button
             onClick={() => setActiveTab('3d')}
-            className={`py-2 px-4 font-semibold text-sm border-b-2 transition flex items-center gap-2 ${
-              activeTab === '3d' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            className={`flex-1 sm:flex-none py-2.5 px-3 text-center font-semibold text-xs sm:text-sm border-b-2 transition flex items-center justify-center gap-1.5 ${
+              activeTab === '3d' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
             }`}
           >
-            🏠 Vista 3D ¡Sorpresa! ✨
+            🏠 Vista 3D ✨
           </button>
         </div>
-        <span className="text-xs text-gray-500 hidden sm:inline">Modifica las dimensiones en 2D y míralo en 3D</span>
       </div>
 
       {activeTab === '2d' ? (
         <>
           {/* Toolbar de habitaciones */}
-          <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h4 className="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-1">➕ Agregar ambientes al plano:</h4>
-            <div className="flex flex-wrap gap-2">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-xl shadow-sm">
+            <h4 className="font-semibold text-gray-700 mb-2.5 text-xs sm:text-sm flex items-center gap-1">➕ Añadir ambientes:</h4>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {roomTypes.map((type) => (
                 <button
                   key={type.name}
                   onClick={() => addRoom(type)}
-                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:border-green-600 hover:bg-green-50 transition shadow-sm text-gray-700"
+                  className="flex items-center gap-1.5 px-2.5 py-2 bg-white border border-gray-200 rounded-lg active:bg-green-50 active:border-green-600 sm:hover:border-green-600 sm:hover:bg-green-50 transition shadow-sm text-gray-700"
                 >
-                  <span>{type.icon}</span>
+                  <span className="text-sm">{type.icon}</span>
                   <span className="text-xs font-medium">{type.name}</span>
                 </button>
               ))}
             </div>
           </div>
           
-          {/* Plano interactivo SVG */}
+          {/* Plano interactivo SVG listo para Touch (celulares) */}
           <div 
-            className="relative overflow-auto border-2 border-gray-200 rounded-xl bg-slate-50 p-4 flex justify-center shadow-inner"
-            onMouseMove={handleGlobalMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            className="relative overflow-auto border-2 border-gray-200 rounded-xl bg-slate-50 p-2 sm:p-4 flex justify-center shadow-inner touch-none"
+            onMouseMove={handleGlobalMove}
+            onMouseUp={handleEndInteraction}
+            onMouseLeave={handleEndInteraction}
+            onTouchMove={handleGlobalMove}
+            onTouchEnd={handleEndInteraction}
           >
             <svg 
               width={svgWidth} 
@@ -221,7 +252,6 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
               className="bg-white rounded-lg shadow-md border border-gray-100"
             >
-              {/* Grid de fondo */}
               <defs>
                 <pattern id="grid" width={scale / 2} height={scale / 2} patternUnits="userSpaceOnUse">
                   <path d={`M ${scale / 2} 0 L 0 0 0 ${scale / 2}`} fill="none" stroke="#f1f5f9" strokeWidth="1" />
@@ -229,7 +259,7 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
 
-              {/* Marco exterior de la cabaña */}
+              {/* Contorno perimetral */}
               <rect
                 x={20}
                 y={20}
@@ -241,12 +271,11 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
                 rx="6"
               />
               
-              {/* Medidas exteriores */}
               <text x={20 + (cabinWidth * scale) / 2} y={15} textAnchor="middle" fontSize="11" fill="#0f766e" className="font-bold">
-                Ancho: {cabinWidth}m
+                {cabinWidth}m de ancho
               </text>
               <text x={svgWidth - 12} y={20 + (cabinLength * scale) / 2} textAnchor="middle" fontSize="11" fill="#0f766e" className="font-bold" transform={`rotate(90, ${svgWidth - 12}, ${20 + (cabinLength * scale) / 2})`}>
-                Largo: {cabinLength}m
+                {cabinLength}m de largo
               </text>
               
               {/* Habitaciones */}
@@ -263,42 +292,46 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
                     strokeWidth="2.5"
                     rx="4"
                     className={`cursor-move transition-all ${selectedRoom === room.id ? 'stroke-blue-600 stroke-2' : ''}`}
-                    onMouseDown={(e) => handleMouseDown(room.id, e)}
+                    onMouseDown={(e) => handleStartDrag(room.id, e)}
+                    onTouchStart={(e) => handleStartDrag(room.id, e)}
                   />
                   
-                  {/* Esquina superior derecha (Ancho) */}
+                  {/* Manillas de tamaño agrandadas a r="10" para que quepa la yema del dedo */}
+                  {/* Derecha (Ancho) */}
                   <circle
                     cx={20 + (room.x + room.width) * scale}
                     cy={20 + room.y * scale}
-                    r="6"
-                    className="fill-amber-500 stroke-white stroke-2 cursor-ew-resize"
-                    onMouseDown={(e) => startResize(room.id, 'e', e)}
+                    r="10"
+                    className="fill-amber-500 stroke-white stroke-2 cursor-ew-resize opacity-90"
+                    onMouseDown={(e) => handleStartResize(room.id, 'e', e)}
+                    onTouchStart={(e) => handleStartResize(room.id, 'e', e)}
                   />
-                  {/* Esquina inferior derecha (Ancho y Alto) */}
+                  {/* Esquina Inferior Derecha (Ambos ejes) */}
                   <circle
                     cx={20 + (room.x + room.width) * scale}
                     cy={20 + (room.y + room.height) * scale}
-                    r="7"
-                    className="fill-amber-600 stroke-white stroke-2 cursor-se-resize"
-                    onMouseDown={(e) => startResize(room.id, 'es', e)}
+                    r="12"
+                    className="fill-amber-600 stroke-white stroke-2 cursor-se-resize opacity-90"
+                    onMouseDown={(e) => handleStartResize(room.id, 'es', e)}
+                    onTouchStart={(e) => handleStartResize(room.id, 'es', e)}
                   />
-                  {/* Esquina inferior izquierda (Alto) */}
+                  {/* Abajo (Alto) */}
                   <circle
                     cx={20 + room.x * scale}
                     cy={20 + (room.y + room.height) * scale}
-                    r="6"
-                    className="fill-amber-500 stroke-white stroke-2 cursor-ns-resize"
-                    onMouseDown={(e) => startResize(room.id, 's', e)}
+                    r="10"
+                    className="fill-amber-500 stroke-white stroke-2 cursor-ns-resize opacity-90"
+                    onMouseDown={(e) => handleStartResize(room.id, 's', e)}
+                    onTouchStart={(e) => handleStartResize(room.id, 's', e)}
                   />
                   
-                  {/* Texto */}
                   <text
                     x={20 + room.x * scale + (room.width * scale) / 2}
                     y={20 + room.y * scale + (room.height * scale) / 2 - 4}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fontSize="12"
-                    className="fill-slate-800 font-semibold select-none pointer-events-none"
+                    fontSize="11"
+                    className="fill-slate-800 font-bold select-none pointer-events-none"
                   >
                     {room.name}
                   </text>
@@ -307,10 +340,10 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
                     y={20 + room.y * scale + (room.height * scale) / 2 + 12}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fontSize="10"
-                    className="fill-slate-500 font-medium select-none pointer-events-none"
+                    fontSize="9"
+                    className="fill-slate-600 font-semibold select-none pointer-events-none"
                   >
-                    {room.width.toFixed(2)}x{room.height.toFixed(2)}m
+                    {room.width.toFixed(1)}x{room.height.toFixed(1)}m
                   </text>
                 </g>
               ))}
@@ -318,58 +351,42 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
           </div>
         </>
       ) : (
-        /* VISTA 3D CON THREE.JS */
-        <div className="w-full h-[500px] bg-slate-900 rounded-xl overflow-hidden relative shadow-lg border border-slate-800">
-          <div className="absolute top-4 left-4 z-10 bg-slate-800/90 text-white text-xs px-3 py-2 rounded-lg backdrop-blur-sm pointer-events-none shadow">
-            🖱️ <strong>Click izquierdo + Arrastrar:</strong> Rotar cámara | 📜 <strong>Scroll:</strong> Zoom
+        /* VISTA 3D EN MOBILE CON CONTROL TÁCTIL AUTOMÁTICO */
+        <div className="w-full h-[380px] sm:h-[500px] bg-slate-900 rounded-xl overflow-hidden relative shadow-lg border border-slate-800">
+          <div className="absolute top-3 left-3 z-10 bg-slate-800/95 text-white text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg backdrop-blur-sm pointer-events-none shadow">
+            📱 <strong>Un dedo:</strong> Rotar | ✌️ <strong>Pellizcar:</strong> Zoom
           </div>
           
-          <Canvas camera={{ position: [8, 10, 12], fov: 45 }}>
+          <Canvas camera={{ position: [7, 9, 11], fov: 45 }}>
             <color attach="background" args={['#0f172a']} />
-            
-            {/* Iluminación cinematográfica para renderizado atractivo */}
             <ambientLight intensity={0.7} />
-            <directionalLight position={[10, 15, 5]} intensity={1.2} castShadow />
-            <pointLight position={[-10, 8, -5]} intensity={0.5} />
+            <directionalLight position={[10, 15, 5]} intensity={1.2} />
 
             <Center>
-              {/* Radier / Base de la cabaña */}
-              <mesh position={[0, -0.05, 0]} receiveShadow>
+              <mesh position={[0, -0.05, 0]}>
                 <boxGeometry args={[cabinWidth, 0.1, cabinLength]} />
                 <meshStandardMaterial color="#334155" roughness={0.6} />
               </mesh>
 
-              {/* Render de los ambientes en 3D */}
               {rooms.map((room) => {
-                // Cálculo de posiciones relativas ajustadas al centro de Three.js
                 const posX = room.x + room.width / 2 - cabinWidth / 2
                 const posZ = room.y + room.height / 2 - cabinLength / 2
-                const height3D = 2.4 // 2.4 metros de altura standard de pared
+                const height3D = 2.2
                 
                 return (
                   <group key={room.id} position={[posX, 0, posZ]}>
-                    {/* Piso de la habitación */}
                     <mesh position={[0, 0.01, 0]}>
-                      <boxGeometry args={[room.width - 0.04, 0.02, room.height - 0.04]} />
-                      <meshStandardMaterial color={room.color} roughness={0.4} metalness={0.1} />
+                      <boxGeometry args={[room.width - 0.03, 0.02, room.height - 0.03]} />
+                      <meshStandardMaterial color={room.color} roughness={0.4} />
                     </mesh>
 
-                    {/* Paredes Perimetrales Simuladas mediante bordes volumétricos */}
                     <mesh position={[0, height3D / 2, 0]}>
                       <boxGeometry args={[room.width, height3D, room.height]} />
-                      {/* Material transparente/wireframe sofisticado para ver hacia adentro */}
-                      <meshStandardMaterial 
-                        color={room.color} 
-                        wireframe 
-                        transparent 
-                        opacity={0.4} 
-                        roughness={0.2}
-                      />
+                      <meshStandardMaterial color={room.color} wireframe transparent opacity={0.35} />
                     </mesh>
 
-                    {/* Muro base visual (Zócalo indicador de la habitación) */}
-                    <mesh position={[0, 0.15, 0]}>
-                      <boxGeometry args={[room.width, 0.3, room.height]} />
+                    <mesh position={[0, 0.1, 0]}>
+                      <boxGeometry args={[room.width, 0.2, room.height]} />
                       <meshStandardMaterial color="#1e293b" opacity={0.8} transparent />
                     </mesh>
                   </group>
@@ -377,88 +394,51 @@ export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveF
               })}
             </Center>
 
-            {/* Guía de suelo */}
-            <Grid 
-              renderOrder={-1} 
-              position={[0, -0.06, 0]} 
-              args={[30, 30]} 
-              cellSize={1} 
-              cellThickness={1} 
-              cellColor="#334155" 
-              sectionSize={5} 
-              sectionThickness={1.5} 
-              sectionColor="#475569" 
-              fadeDistance={25}
-            />
-            
-            <OrbitControls 
-              enableDamping 
-              dampingFactor={0.05} 
-              maxPolarAngle={Math.PI / 2.1} // Evita que la cámara baje del piso
-              minDistance={5}
-              maxDistance={25}
-            />
+            <Grid position={[0, -0.06, 0]} args={[20, 20]} cellColor="#334155" sectionColor="#475569" fadeDistance={20} />
+            <OrbitControls enableDamping dampingFactor={0.07} maxPolarAngle={Math.PI / 2.2} minDistance={4} maxDistance={20} />
           </Canvas>
         </div>
       )}
       
-      {/* Lista de habitaciones y Edición Manual de Nombres */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+      {/* Editor de Nombres de Ambientes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
         {rooms.map((room) => (
-          <div key={room.id} className="flex items-center gap-3 p-2 bg-white border border-gray-100 rounded-xl shadow-sm">
-            <div className="w-5 h-5 rounded-md shadow-inner border border-gray-200" style={{ backgroundColor: room.color }}></div>
+          <div key={room.id} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded-xl shadow-sm">
+            <div className="w-4 h-4 rounded border border-gray-200 shrink-0" style={{ backgroundColor: room.color }}></div>
             <input
               type="text"
               value={room.name}
               onChange={(e) => updateRoomName(room.id, e.target.value)}
-              className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-green-500 focus:outline-none transition text-gray-700 font-medium"
+              className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded-lg text-xs bg-gray-50 text-gray-700 font-medium focus:bg-white"
             />
-            <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
               {room.width.toFixed(1)}x{room.height.toFixed(1)}m
             </span>
-            <button
-              onClick={() => removeRoom(room.id)}
-              className="text-gray-400 hover:text-red-500 p-1.5 transition text-sm"
-              title="Eliminar ambiente"
-            >
+            <button onClick={() => removeRoom(room.id)} className="text-gray-400 active:text-red-500 sm:hover:text-red-500 p-1 shrink-0">
               🗑️
             </button>
           </div>
         ))}
       </div>
       
-      {/* Estadísticas de Distribución */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-5 rounded-xl shadow-sm">
-        <h4 className="font-bold text-teal-900 mb-3 text-sm flex items-center gap-1">📐 Balance de Espacio y Superficie</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-          <div className="bg-white p-3 rounded-lg shadow-2xl border border-teal-100/50">
-            <span className="text-gray-500 block mb-1">Cabaña Total:</span>
-            <span className="font-bold text-base text-teal-900">{cabinArea.toFixed(1)} m²</span>
+      {/* Caja de Estadísticas */}
+      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-4 rounded-xl">
+        <h4 className="font-bold text-teal-900 mb-2.5 text-xs sm:text-sm">📐 Resumen de Superficie</h4>
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="bg-white p-2 rounded-lg border border-teal-50">
+            <span className="text-gray-500 block">Total Cabaña:</span>
+            <span className="font-bold text-teal-900">{cabinArea.toFixed(1)} m²</span>
           </div>
-          <div className="bg-white p-3 rounded-lg shadow-2xl border border-teal-100/50">
-            <span className="text-gray-500 block mb-1">Área Ocupada:</span>
-            <span className="font-bold text-base text-gray-800">{totalArea.toFixed(1)} m²</span>
-          </div>
-          <div className="bg-white p-3 rounded-lg shadow-2xl border border-teal-100/50">
-            <span className="text-gray-500 block mb-1">Área Disponible:</span>
-            <span className={`font-bold text-base ${freeArea < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {freeArea.toFixed(1)} m²
-            </span>
-          </div>
-          <div className="bg-white p-3 rounded-lg shadow-2xl border border-teal-100/50">
-            <span className="text-gray-500 block mb-1">N° de Ambientes:</span>
-            <span className="font-bold text-base text-slate-700">{rooms.length}</span>
+          <div className="bg-white p-2 rounded-lg border border-teal-50">
+            <span className="text-gray-500 block">Área Disponible:</span>
+            <span className={`font-bold ${freeArea < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{freeArea.toFixed(1)} m²</span>
           </div>
         </div>
         {freeArea < 0 && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs mt-3 font-medium flex items-center gap-1">
-            ⚠️ ¡Atención! Los ambientes exceden el espacio delimitado de la cabaña. Redimensiona algunos espacios en la pestaña 2D.
+          <div className="p-2 bg-red-50 border border-red-100 rounded-lg text-red-700 text-[10px] mt-2 font-medium">
+            ⚠️ Los ambientes exceden el tamaño real de la cabaña.
           </div>
         )}
-      </div>
-      
-      <div className="text-xs text-gray-400 text-center italic">
-        💡 Tips: Diseña la distribución arrastrando y estirando los nodos ámbar en el plano 2D, luego pasa a la pestaña 3D para ver el modelado interactivo final.
       </div>
     </div>
   )
