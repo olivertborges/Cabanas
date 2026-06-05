@@ -153,7 +153,7 @@ export default function ConfiguratorWizard() {
 
         {/* Price Panel */}
         <div className="lg:col-span-1">
-          <PriceBreakdown
+          <PriceBreakDown
             prices={prices}
             totalUSD={totalUSD}
             totalUYU={totalUYU}
