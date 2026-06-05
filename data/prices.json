@@ -1,0 +1,42 @@
+{
+  "basePrices": {
+    "6x6": 25000,
+    "8x8": 35000,
+    "10x8": 42000,
+    "11x9": 52000
+  },
+  "customSizePricePerM2": 180,
+  "bedrooms": {
+    "1": 0,
+    "2": 4500,
+    "3": 8500,
+    "4": 12500
+  },
+  "bathrooms": {
+    "1": 0,
+    "2": 3200,
+    "3": 5800
+  },
+  "roof": {
+    "standard": 0,
+    "modern": 3800,
+    "canadian": 5200
+  },
+  "eaves": {
+    "none": 0,
+    "1side": 1500,
+    "2sides": 2800,
+    "4sides": 4200
+  },
+  "flooring": {
+    "standard": 0,
+    "premium": 3500,
+    "luxury": 6200
+  },
+  "extras": {
+    "spa": 4800,
+    "fireplace": 2200,
+    "bbq": 1800,
+    "covered_parking": 3500
+  }
+}

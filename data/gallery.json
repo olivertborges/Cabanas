@@ -1,0 +1,39 @@
+[
+  {
+    "category": "exteriores",
+    "images": [
+      "/images/gallery/exterior1.jpg",
+      "/images/gallery/exterior2.jpg",
+      "/images/gallery/exterior3.jpg"
+    ]
+  },
+  {
+    "category": "interiores",
+    "images": [
+      "/images/gallery/interior1.jpg",
+      "/images/gallery/interior2.jpg",
+      "/images/gallery/interior3.jpg"
+    ]
+  },
+  {
+    "category": "cocinas",
+    "images": [
+      "/images/gallery/cocina1.jpg",
+      "/images/gallery/cocina2.jpg"
+    ]
+  },
+  {
+    "category": "baños",
+    "images": [
+      "/images/gallery/banio1.jpg",
+      "/images/gallery/banio2.jpg"
+    ]
+  },
+  {
+    "category": "dormitorios",
+    "images": [
+      "/images/gallery/dormitorio1.jpg",
+      "/images/gallery/dormitorio2.jpg"
+    ]
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "id": "familiar",
+    "name": "Modelo Familiar",
+    "description": "Perfecta para familias de 4-5 personas. Amplios espacios y mucha luz natural.",
+    "baseSize": "10x8",
+    "basePrice": 42000,
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "image": "/images/renders/familiar.jpg",
+    "features": ["Cocina integrada", "Gran terraza", "Estacionamiento"]
+  },
+  {
+    "id": "premium",
+    "name": "Modelo Premium",
+    "description": "Diseño moderno con terminaciones de primera calidad.",
+    "baseSize": "11x9",
+    "basePrice": 52000,
+    "bedrooms": 4,
+    "bathrooms": 2,
+    "image": "/images/renders/premium.jpg",
+    "features": ["Parrillero techado", "Hidromasaje", "Vestidor"]
+  },
+  {
+    "id": "luxury",
+    "name": "Modelo Luxury",
+    "description": "Máximo confort y exclusividad. Totalmente personalizable.",
+    "baseSize": "11x9",
+    "basePrice": 68000,
+    "bedrooms": 4,
+    "bathrooms": 3,
+    "image": "/images/renders/luxury.jpg",
+    "features": ["Piscina privada", "Sauna", "Domótica"]
+  }
+]
