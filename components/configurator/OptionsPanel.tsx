@@ -50,7 +50,7 @@ const extrasList = [
     label: '💧 Pozo negro', 
     description: 'Sistema de saneamiento básico ($2,000 USD fijo)',
     hasVariablePrice: false,
-    price: 2000
+    fixedPrice: 2000
   },
   { 
     id: 'alero', 
@@ -82,13 +82,13 @@ const semiterminadaExtras = [
     id: 'banio_semiterminada', 
     label: '🚽 Baño completo', 
     description: 'Instalación y terminaciones básicas del baño ($2,000 USD)',
-    price: 2000
+    fixedPrice: 2000
   },
   { 
     id: 'cocina_extra', 
     label: '🍳 Cocina completa', 
     description: 'Muebles aéreo y bajo mesada + electrodomésticos ($1,500 USD)',
-    price: 1500
+    fixedPrice: 1500
   },
 ]
 
@@ -178,10 +178,12 @@ export default function OptionsPanel({ options, setOptions, finishType }: Option
             } else if (extra.id === 'piso_ceramico') {
               displayPrice = `USD ${pisoCeramicoPrice.toLocaleString()}`
             } else if (extra.id === 'pozo_negro') {
-              displayPrice = `USD ${extra.price.toLocaleString()}`
+              const price = extra.fixedPrice || 0
+              displayPrice = `USD ${price.toLocaleString()}`
             } else if (extra.needsMeters) {
               const meters = getMetersValue(extra.id)
-              const totalPrice = meters * (extra.pricePerMeter || 0)
+              const pricePerMeter = extra.pricePerMeter || 0
+              const totalPrice = meters * pricePerMeter
               displayPrice = meters > 0 ? `USD ${totalPrice.toLocaleString()}` : ''
             }
             
@@ -245,27 +247,30 @@ export default function OptionsPanel({ options, setOptions, finishType }: Option
         <div>
           <h4 className="text-lg font-semibold mb-3">🔧 Terminaciones para semiterminada</h4>
           <div className="space-y-3">
-            {semiterminadaExtras.map((extra) => (
-              <div key={extra.id} className="border rounded-lg p-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={options.extras.includes(extra.id)}
-                    onChange={() => toggleExtra(extra.id)}
-                    className="w-5 h-5 text-primary"
-                  />
-                  <div>
-                    <span className="font-medium">{extra.label}</span>
-                    <p className="text-sm text-gray-500">{extra.description}</p>
-                    {options.extras.includes(extra.id) && (
-                      <p className="text-sm font-medium text-primary mt-1">
-                        Costo: USD {extra.price.toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                </label>
-              </div>
-            ))}
+            {semiterminadaExtras.map((extra) => {
+              const price = extra.fixedPrice || 0
+              return (
+                <div key={extra.id} className="border rounded-lg p-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={options.extras.includes(extra.id)}
+                      onChange={() => toggleExtra(extra.id)}
+                      className="w-5 h-5 text-primary"
+                    />
+                    <div>
+                      <span className="font-medium">{extra.label}</span>
+                      <p className="text-sm text-gray-500">{extra.description}</p>
+                      {options.extras.includes(extra.id) && (
+                        <p className="text-sm font-medium text-primary mt-1">
+                          Costo: USD {price.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
