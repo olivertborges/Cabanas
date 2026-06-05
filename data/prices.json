@@ -1,42 +1,80 @@
 {
+  "finishTypes": {
+    "llave_en_mano": {
+      "name": "Llave en mano",
+      "description": "Se entrega pronta para habitar. Incluye: revestimiento yeso, baño completo con cerámica, aislación térmica, instalación luz/agua, cocina con aéreo y bajo mesada, piso de madera, elevada 50-60cm, techo chapa trapezoidal calibre 26.",
+      "multiplier": 1
+    },
+    "semiterminada": {
+      "name": "Semiterminada",
+      "description": "Estructura completa, paredes, techo, puertas y ventanas colocadas, división de ambientes. Sin terminaciones finales (eléctrica, sanitaria, pintura).",
+      "multiplier": 1
+    }
+  },
   "basePrices": {
-    "6x6": 25000,
-    "8x8": 35000,
-    "10x8": 42000,
-    "11x9": 52000
-  },
-  "customSizePricePerM2": 180,
-  "bedrooms": {
-    "1": 0,
-    "2": 4500,
-    "3": 8500,
-    "4": 12500
-  },
-  "bathrooms": {
-    "1": 0,
-    "2": 3200,
-    "3": 5800
-  },
-  "roof": {
-    "standard": 0,
-    "modern": 3800,
-    "canadian": 5200
-  },
-  "eaves": {
-    "none": 0,
-    "1side": 1500,
-    "2sides": 2800,
-    "4sides": 4200
-  },
-  "flooring": {
-    "standard": 0,
-    "premium": 3500,
-    "luxury": 6200
+    "6x3": { "llave_en_mano": 9500, "semiterminada": 5500 },
+    "6x4": { "llave_en_mano": 10500, "semiterminada": 6000 },
+    "6x5": { "llave_en_mano": 13000, "semiterminada": 6500 },
+    "6x6": { "llave_en_mano": 14500, "semiterminada": 7000 },
+    "6x7": { "llave_en_mano": 15500, "semiterminada": 8000 },
+    "6x8": { "llave_en_mano": 17500, "semiterminada": 9000 },
+    "6x9": { "llave_en_mano": 19500, "semiterminada": 10000 },
+    "6x10": { "llave_en_mano": 21500, "semiterminada": 11500 },
+    "6x12": { "llave_en_mano": 24500, "semiterminada": 13000 }
   },
   "extras": {
-    "spa": 4800,
-    "fireplace": 2200,
-    "bbq": 1800,
-    "covered_parking": 3500
-  }
+    "platea_hormigon": {
+      "name": "Platea de hormigón",
+      "description": "Base de hormigón para el terreno nivelado",
+      "prices": {
+        "6x3": 1500, "6x4": 1500, "6x5": 1500,
+        "6x6": 2500, "6x7": 2500, "6x8": 2500,
+        "6x9": 3000, "6x10": 3000, "6x12": 3000
+      }
+    },
+    "pozo_negro": {
+      "name": "Pozo negro",
+      "description": "Sistema de saneamiento básico",
+      "price": 2000
+    },
+    "alero": {
+      "name": "Alero perimetral",
+      "description": "Protección alrededor de la cabaña",
+      "pricePerMeter": 120
+    },
+    "caminador_con_alero": {
+      "name": "Caminador con alero",
+      "description": "Pasillo techado exterior",
+      "pricePerMeter": 250
+    },
+    "piso_ceramico": {
+      "name": "Piso cerámico (reemplaza al de madera)",
+      "description": "Piso cerámico en toda la cabaña",
+      "prices": {
+        "6x3": 1700, "6x4": 2000, "6x5": 2700,
+        "6x6": 3500, "6x7": 4500,
+        "6x8": 5000, "6x9": 5000, "6x10": 5000,
+        "6x12": 5500
+      }
+    },
+    "banio_semiterminada": {
+      "name": "Baño completo (solo para semiterminada)",
+      "description": "Instalación y terminaciones básicas del baño",
+      "price": 2000,
+      "onlyFor": "semiterminada"
+    },
+    "cocina_extra": {
+      "name": "Cocina completa (muebles + electrodomésticos)",
+      "description": "Para cabañas semiterminadas",
+      "price": 1500,
+      "onlyFor": "semiterminada"
+    }
+  },
+  "whatsappNumber": "59897741459",
+  "paymentTerms": {
+    "initial": 50,
+    "final": 50,
+    "description": "50% al llegar con los materiales, 50% al finalizar la obra"
+  },
+  "notIncluded": ["Pozo negro", "Flete", "Platea de hormigón"]
 }

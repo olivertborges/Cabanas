@@ -1,30 +1,31 @@
 'use client'
 
 import { useState } from 'react'
+import FinishTypeSelector from './FinishTypeSelector'
 import SizeSelector from './SizeSelector'
 import OptionsPanel from './OptionsPanel'
 import PriceBreakdown from './PriceBreakDown'
 import DynamicFloorPlan from './DynamicFloorPlan'
-import { ConfigOptions, calculatePrice, getUSDtoUYU, convertToUYU } from '@/utils/priceCalculator'
+import { ConfigOptions, FinishType, calculatePrice, getUSDtoUYU, convertToUYU } from '@/utils/priceCalculator'
 import { getWhatsAppLink } from '@/utils/whatsapp'
 import { generatePDFBlob } from '@/utils/pdfGenerator'
 import { Download, Send } from 'lucide-react'
+import InteractiveFloorPlan from './InteractiveFloorPlan'
 
-const steps = ['Tamaño', 'Distribución', 'Extras', 'Resumen']
+const steps = ['Tipo de entrega', 'Tamaño', 'Personalización', 'Plano', 'Resumen']
 
 export default function ConfiguratorWizard() {
   const [currentStep, setCurrentStep] = useState(0)
   const [currency, setCurrency] = useState<'USD' | 'UYU'>('USD')
-  const [exchangeRate, setExchangeRate] = useState<number>(39.5)
+  const [exchangeRate, setExchangeRate] = useState<number>(43.5)
+  const [finishType, setFinishType] = useState<FinishType>('llave_en_mano')
   const [options, setOptions] = useState<ConfigOptions>({
-    size: '10x8',
+    finishType: 'llave_en_mano',
+    size: '6x6',
     customSize: undefined,
-    bedrooms: '3',
-    bathrooms: '2',
-    roof: 'standard',
-    eaves: 'none',
-    flooring: 'standard',
-    extras: []
+    extras: [],
+    aleroMetros: 0,
+    caminadorMetros: 0
   })
 
   // Cargar cotización del dólar
@@ -32,10 +33,15 @@ export default function ConfiguratorWizard() {
     getUSDtoUYU().then(rate => setExchangeRate(rate))
   })
 
+  // Actualizar finishType en options cuando cambie
+  const handleFinishTypeChange = (type: FinishType) => {
+    setFinishType(type)
+    setOptions({ ...options, finishType: type })
+  }
+
   const prices = calculatePrice(options)
   const totalUSD = prices.total
   const totalUYU = convertToUYU(totalUSD, exchangeRate)
-  const displayTotal = currency === 'USD' ? `USD ${totalUSD.toLocaleString()}` : `$U ${totalUYU.toLocaleString()}`
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -64,15 +70,15 @@ export default function ConfiguratorWizard() {
     <div className="container-custom py-12">
       {/* Steps */}
       <div className="mb-12">
-        <div className="flex justify-between items-center max-w-2xl mx-auto">
+        <div className="flex justify-between items-center max-w-3xl mx-auto overflow-x-auto">
           {steps.map((step, index) => (
-            <div key={step} className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+            <div key={step} className="flex flex-col items-center min-w-[70px]">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                 index <= currentStep ? 'bg-primary text-white' : 'bg-gray-300 text-gray-600'
               }`}>
                 {index + 1}
               </div>
-              <span className="text-sm mt-2 hidden md:block">{step}</span>
+              <span className="text-xs mt-1 text-center hidden sm:block">{step}</span>
             </div>
           ))}
         </div>
@@ -82,46 +88,40 @@ export default function ConfiguratorWizard() {
         {/* Configurador */}
         <div className="lg:col-span-2 space-y-8">
           {currentStep === 0 && (
-            <SizeSelector options={options} setOptions={setOptions} />
+            <FinishTypeSelector finishType={finishType} setFinishType={handleFinishTypeChange} />
           )}
           {currentStep === 1 && (
-            <OptionsPanel options={options} setOptions={setOptions} />
+            <SizeSelector options={options} setOptions={setOptions} />
           )}
           {currentStep === 2 && (
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-2xl font-bold mb-4">Plano interactivo</h3>
-                <DynamicFloorPlan options={options} />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold mb-4">Simulador informativo</h3>
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <p className="text-gray-600 mb-4">
-                    * Los valores mostrados son a modo informativo. No ofrecemos financiación propia.
-                  </p>
-                  <div className="space-y-2">
-                    <p>💰 Entrega sugerida: <strong>USD {(totalUSD * 0.2).toLocaleString()}</strong> (20%)</p>
-                    <p>🏦 Saldo restante: <strong>USD {(totalUSD * 0.8).toLocaleString()}</strong></p>
-                    <p>📊 Cuota referencial (48 meses): <strong>USD {Math.round(totalUSD * 0.8 / 48).toLocaleString()}/mes</strong></p>
-                    <p className="text-sm text-gray-500 mt-4">Consultá con tu banco por créditos hipotecarios o prendarios.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <OptionsPanel options={options} setOptions={setOptions} finishType={finishType} />
           )}
           {currentStep === 3 && (
+            <div>
+              <h3 className="text-2xl font-bold mb-4">Diseñá la distribución</h3>
+              <p className="text-gray-600 mb-4">
+                Arrastrá las habitaciones, redimensionalas y organizá los espacios a tu gusto.
+              </p>
+              <InteractiveFloorPlan options={options} />
+            </div>
+          )}
+          {currentStep === 4 && (
             <div className="space-y-6">
               <h3 className="text-2xl font-bold">Resumen de tu cabaña</h3>
               <div className="bg-gray-50 p-6 rounded-lg space-y-3">
-                <p><strong>📐 Tamaño:</strong> {options.size === 'custom' && options.customSize ? `${options.customSize} m²` : options.size}</p>
-                <p><strong>🛏️ Dormitorios:</strong> {options.bedrooms}</p>
-                <p><strong>🚽 Baños:</strong> {options.bathrooms}</p>
-                <p><strong>🏠 Techo:</strong> {options.roof}</p>
-                <p><strong>🌿 Alero:</strong> {options.eaves}</p>
-                <p><strong>🏠 Revestimiento:</strong> {options.flooring}</p>
-                {options.extras.length > 0 && (
-                  <p><strong>✨ Extras:</strong> {options.extras.join(', ')}</p>
+                <p><strong>🔨 Tipo de entrega:</strong> {finishType === 'llave_en_mano' ? 'Llave en mano 🏠' : 'Semiterminada 🔨'}</p>
+                <p><strong>📐 Tamaño:</strong> {options.size === 'custom' && options.customSize ? `6x${options.customSize} (${6 * options.customSize} m²)` : options.size}</p>
+                {options.extras.includes('platea_hormigon') && <p><strong>🏗️ Platea de hormigón:</strong> Incluida</p>}
+                {options.extras.includes('pozo_negro') && <p><strong>💧 Pozo negro:</strong> Incluido</p>}
+                {options.extras.includes('alero') && options.aleroMetros && options.aleroMetros > 0 && (
+                  <p><strong>🌿 Alero:</strong> {options.aleroMetros} metros</p>
                 )}
+                {options.extras.includes('caminador_con_alero') && options.caminadorMetros && options.caminadorMetros > 0 && (
+                  <p><strong>🚶 Caminador con alero:</strong> {options.caminadorMetros} metros</p>
+                )}
+                {options.extras.includes('piso_ceramico') && <p><strong>🪟 Piso cerámico:</strong> En lugar de madera</p>}
+                {options.extras.includes('banio_semiterminada') && <p><strong>🚽 Baño completo:</strong> Incluido</p>}
+                {options.extras.includes('cocina_extra') && <p><strong>🍳 Cocina completa:</strong> Incluida</p>}
               </div>
             </div>
           )}
@@ -154,16 +154,16 @@ export default function ConfiguratorWizard() {
 
         {/* Price Panel */}
         <div className="lg:col-span-1">
-          <div className="sticky top-24">
-            <PriceBreakdown
-              prices={prices}
-              totalUSD={totalUSD}
-              totalUYU={totalUYU}
-              currency={currency}
-              setCurrency={setCurrency}
-              exchangeRate={exchangeRate}
-            />
-          </div>
+          <PriceBreakdown
+            prices={prices}
+            totalUSD={totalUSD}
+            totalUYU={totalUYU}
+            currency={currency}
+            setCurrency={setCurrency}
+            exchangeRate={exchangeRate}
+            finishType={finishType}
+            size={options.size === 'custom' && options.customSize ? `6x${options.customSize}` : options.size}
+          />
         </div>
       </div>
     </div>

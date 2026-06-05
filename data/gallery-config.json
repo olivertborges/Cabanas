@@ -1,0 +1,14 @@
+{
+  "categories": [
+    { "id": "exteriores", "name": "Exteriores", "icon": "Home", "description": "Vistas exteriores de nuestras cabañas" },
+    { "id": "interiores", "name": "Interiores", "icon": "LayoutGrid", "description": "Ambientes internos y distribuciones" },
+    { "id": "cocinas", "name": "Cocinas", "icon": "Utensils", "description": "Cocinas equipadas" },
+    { "id": "baños", "name": "Baños", "icon": "Bath", "description": "Baños completos" },
+    { "id": "dormitorios", "name": "Dormitorios", "icon": "Bed", "description": "Habitaciones" },
+    { "id": "destacados", "name": "Destacados", "icon": "Building2", "description": "Proyectos especiales" }
+  ],
+  "settings": {
+    "galleryPath": "/images/gallery/",
+    "supportedExtensions": [".jpg", ".jpeg", ".png", ".webp"]
+  }
+}
