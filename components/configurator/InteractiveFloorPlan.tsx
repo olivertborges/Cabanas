@@ -77,7 +77,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     return { minX: -margin, minY: -margin, w: cabinWidth + (margin * 2), l: cabinLength + (margin * 2) }
   }, [cabinWidth, cabinLength])
 
-  // --- MOTOR MOUSE/TOUCH ---
+  // --- MOTOR MOUSE/TOUCH PLANO 2D ---
   const getCoordinatesFromEvent = (e: any) => {
     if (!svgRef.current) return null
     const rect = svgRef.current.getBoundingClientRect()
@@ -133,8 +133,8 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
   return (
     <div className="flex flex-col xl:flex-row gap-4 p-2 sm:p-4 bg-slate-900 text-white rounded-2xl sm:rounded-3xl shadow-2xl select-none w-full max-w-7xl mx-auto overflow-hidden">
       
-      {/* 🛠️ PANEL DE CONTROL */}
-      <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800 shrink-0 max-h-[420px] xl:max-h-[680px] overflow-y-auto">
+      {/* 🛠️ PANEL DE CONTROL LEFT */}
+      <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800 shrink-0 max-h-[400px] xl:max-h-[640px] overflow-y-auto">
         <div>
           <span className="text-[9px] sm:text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
             Entorno Bioclimático
@@ -142,9 +142,9 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           <h2 className="text-base sm:text-lg font-black tracking-tight mt-1">Diseño de la Cabaña</h2>
         </div>
 
-        {/* MEDIDAS MASTER */}
+        {/* DIMENSIONES TOTALES */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2">
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">📐 Dimensiones Totales (m):</p>
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">📐 Perímetro Máster (m):</p>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] text-slate-400 block mb-0.5">Ancho:</label>
@@ -157,17 +157,17 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         </div>
 
-        {/* SELECTOR DE VISTAS */}
+        {/* SELECTOR DE VISTAS 2D / 3D */}
         <div className="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button onClick={() => setActiveTab('2d')} className={`py-1.5 rounded-lg font-bold text-xs transition ${activeTab === '2d' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
             📐 Plano 2D
           </button>
           <button onClick={() => setActiveTab('3d')} className={`py-1.5 rounded-lg font-bold text-xs transition ${activeTab === '3d' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>
-            🌲 Render Bosque 3D
+            🌲 Ver Render 3D
           </button>
         </div>
 
-        {/* REVESTIMIENTO PINTURA */}
+        {/* CONFIGURACIONES ESTÉTICAS */}
         <div className="space-y-1.5 bg-slate-900 p-3 rounded-xl border border-slate-800">
           <label className="text-[10px] font-bold text-amber-400 uppercase block">🎨 Color de Madera Exterior:</label>
           <div className="grid grid-cols-2 gap-1.5 text-[10px]">
@@ -185,7 +185,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         </div>
 
-        {/* ESTRUCTURA */}
+        {/* ESTRUCTURA BASE Y CIMENTACIÓN */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -205,30 +205,25 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         </div>
 
-        {/* ALEROS */}
+        {/* METADATOS COMPLEMENTARIOS */}
         <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
-          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">☔ Aleros e Instalaciones:</p>
-          <div className="grid grid-cols-4 gap-1 text-[11px] text-center">
-            <label className="block p-1 bg-slate-950 rounded border border-slate-800"><input type="checkbox" checked={eaves.n} onChange={(e) => setEaves({...eaves, n: e.target.checked})} /><br/>N</label>
-            <label className="block p-1 bg-slate-950 rounded border border-slate-800"><input type="checkbox" checked={eaves.s} onChange={(e) => setEaves({...eaves, s: e.target.checked})} /><br/>S</label>
-            <label className="block p-1 bg-slate-950 rounded border border-slate-800"><input type="checkbox" checked={eaves.e} onChange={(e) => setEaves({...eaves, e: e.target.checked})} /><br/>E</label>
-            <label className="block p-1 bg-slate-950 rounded border border-slate-800"><input type="checkbox" checked={eaves.o} onChange={(e) => setEaves({...eaves, o: e.target.checked})} /><br/>O</label>
-          </div>
-          <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-800 mt-2 text-[11px] text-amber-400">
+          <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">☔ Aleros y Galería:</p>
+          <div className="flex flex-col gap-1.5 text-[11px] text-amber-400">
             <label className="flex items-center gap-1.5">
               <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} /> Galería Deck Perimetral
             </label>
             <label className="flex items-center gap-1.5 text-slate-300">
-              <input type="checkbox" checked={showRoof3D} onChange={(e) => setShowRoof3D(e.target.checked)} /> Mostrar Techo en Render
+              <input type="checkbox" checked={showRoof3D} onChange={(e) => setShowRoof3D(e.target.checked)} /> Mostrar Techo Estructural
             </label>
           </div>
         </div>
       </div>
 
-      {/* 🖥️ CANVAS PRINCIPAL */}
-      <div className="flex-1 bg-slate-950 rounded-xl border border-slate-800 overflow-hidden relative min-h-[380px] sm:min-h-[540px] w-full flex justify-center items-center">
+      {/* 🖥️ VENTANA RENDER / PLANO (CORREGIDO EL LIENZO AL 100%) */}
+      <div className="flex-1 bg-slate-950 rounded-xl border border-slate-800 relative min-h-[420px] sm:min-h-[580px] w-full flex justify-center items-center overflow-hidden">
+        
         {activeTab === '2d' ? (
-          <div className="w-full h-full flex justify-center items-center bg-[radial-gradient(#334155_1.1px,transparent_1.1px)] [background-size:20px_20px] p-2 sm:p-4">
+          <div className="w-full h-full flex justify-center items-center bg-[radial-gradient(#334155_1.1px,transparent_1.1px)] [background-size:20px_20px] p-4">
             <svg 
               ref={svgRef}
               viewBox={`${viewBounds.minX * scale} ${viewBounds.minY * scale} ${viewBounds.w * scale} ${viewBounds.l * scale}`}
@@ -238,11 +233,10 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
               onMouseLeave={handleGlobalEnd}
               onTouchMove={handleGlobalMove}
               onTouchEnd={handleGlobalEnd}
-              className="w-full h-full max-h-[480px] bg-slate-900 rounded-xl border border-slate-800 shadow-xl touch-none"
+              className="w-full h-full max-h-[520px] bg-slate-900 rounded-xl border border-slate-800 shadow-xl touch-none"
             >
-              {/* Límite Máster Terreno */}
               <rect x={0} y={0} width={cabinWidth * scale} height={cabinLength * scale} fill="none" stroke="#38bdf8" strokeWidth="2" strokeDasharray="5 4" />
-              <text x={0} y={-8} fill="#38bdf8" className="text-[10px] font-bold uppercase">Cabaña Base ({cabinWidth}m x {cabinLength}m)</text>
+              <text x={0} y={-8} fill="#38bdf8" className="text-[10px] font-bold uppercase">Límites Terreno ({cabinWidth}m x {cabinLength}m)</text>
 
               {rooms.map(r => {
                 const isSel = r.id === selectedRoomId
@@ -270,37 +264,42 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         ) : (
           
-          /* 🌲 RENDER VIVO 3D CORREGIDO Y BLINDADO */
-          <div className="w-full h-full min-h-[380px] sm:min-h-[540px] relative">
-            <Canvas camera={{ position: [cabinWidth / 2, cabinWidth * 0.8, cabinLength * 1.5], fov: 45 }} shadows>
+          /* 🌲 CONTENEDOR 3D FLUIDO (Ocupa el 100% real y reactiva la cámara orbital) */
+          <div className="absolute inset-0 w-full h-full block touch-none">
+            <Canvas 
+              camera={{ position: [cabinWidth / 2, cabinWidth * 0.9, cabinLength * 1.6], fov: 45 }} 
+              shadows
+              style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+              resize={{ debounce: 50 }}
+            >
               <Sky sunPosition={[80, 25, 60]} inclination={0.6} azimuth={0.25} />
-              <ambientLight intensity={showRoof3D ? 0.75 : 1.3} />
+              <ambientLight intensity={showRoof3D ? 0.8 : 1.3} />
               <directionalLight position={[20, 40, 20]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
               
-              {/* TERRENO INFINITO DE PASTO */}
+              {/* SUELO COMPLETO DE PASTO EN EL HORIZONTE */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-                <planeGeometry args={[120, 120]} />
+                <planeGeometry args={[150, 150]} />
                 <meshStandardMaterial color="#1b4314" roughness={0.9} />
               </mesh>
 
-              {/* ANILLO DE NATURALEZA / BOSQUE PERIMETRAL EN EL HORIZONTE */}
+              {/* ANILLO DE BOSQUE DE PINOS */}
               <group position={[cabinWidth / 2, 0, cabinLength / 2]}>
                 {[...Array(24)].map((_, i) => {
                   const angle = (i / 24) * Math.PI * 2
-                  const radius = 22 + Math.random() * 5
+                  const radius = 24 + Math.random() * 4
                   const tx = Math.cos(angle) * radius
                   const tz = Math.sin(angle) * radius
-                  const treeHeight = 3.5 + Math.random() * 2.5
+                  const treeHeight = 3.5 + Math.random() * 2
 
                   return (
-                    <group key={`tree-${i}`} position={[tx, 0, tz]}>
+                    <group key={`tree-3d-${i}`} position={[tx, 0, tz]}>
                       <mesh position={[0, treeHeight * 0.15, 0]}>
-                        <cylinderGeometry args={[0.15, 0.25, treeHeight * 0.3]} />
-                        <meshStandardMaterial color="#3f2305" roughness={0.9} />
+                        <cylinderGeometry args={[0.12, 0.22, treeHeight * 0.3]} />
+                        <meshStandardMaterial color="#3f2305" />
                       </mesh>
                       <mesh position={[0, treeHeight * 0.6, 0]} castShadow>
-                        <coneGeometry args={[1.2, treeHeight * 0.8, 5]} />
-                        <meshStandardMaterial color={i % 2 === 0 ? '#14532d' : '#166534'} roughness={0.8} />
+                        <coneGeometry args={[1.1, treeHeight * 0.8, 4]} />
+                        <meshStandardMaterial color={i % 2 === 0 ? '#14532d' : '#166534'} roughness={0.85} />
                       </mesh>
                     </group>
                   )
@@ -308,7 +307,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
               </group>
 
               <Center>
-                {/* CIMENTACIÓN APODAYO EN SUELO */}
+                {/* CIMIENTO DE CABAÑA */}
                 {baseType === 'PlateaHormigon' ? (
                   <mesh position={[cabinWidth / 2, 0.1, cabinLength / 2]} receiveShadow>
                     <boxGeometry args={[cabinWidth, 0.2, cabinLength]} />
@@ -318,8 +317,8 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   <group>
                     {[0.2, cabinWidth - 0.2].map(x => 
                       [0.2, cabinLength - 0.2].map((z, idx) => (
-                        <mesh key={`pil-${x}-${z}-${idx}`} position={[x, 0.25, z]} castShadow>
-                          <cylinderGeometry args={[0.12, 0.12, 0.5]} />
+                        <mesh key={`pilote-3d-${x}-${z}-${idx}`} position={[x, 0.25, z]} castShadow>
+                          <cylinderGeometry args={[0.11, 0.11, 0.5]} />
                           <meshStandardMaterial color="#2d1606" roughness={0.8} />
                         </mesh>
                       ))
@@ -327,7 +326,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </group>
                 )}
 
-                {/* GALERÍA DECK EXTERIOR */}
+                {/* GALERÍA DECK PERIMETRAL */}
                 {hasWalkway && (
                   <group position={[0, baseType === 'Pilotes' ? 0.5 : 0.2, 0]}>
                     <mesh position={[cabinWidth / 2, 0.02, cabinLength / 2]} receiveShadow>
@@ -341,13 +340,13 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </group>
                 )}
 
-                {/* REVESTIMIENTO DE PISO */}
+                {/* ACABADO PISO INTERIOR */}
                 <mesh position={[cabinWidth / 2, baseType === 'Pilotes' ? 0.52 : 0.22, cabinLength / 2]}>
                   <boxGeometry args={[cabinWidth - 0.04, 0.02, cabinLength - 0.04]} />
                   <meshStandardMaterial color={floorFinish === 'Madera' ? '#854d0e' : '#cbd5e1'} roughness={floorFinish === 'Madera' ? 0.6 : 0.3} />
                 </mesh>
 
-                {/* 🧱 MUROS EXTRUIDOS COMPLETAMENTE COMPATIBLES CON THREE.JS */}
+                {/* MUROS INTERIORES Y PERIMETRALES */}
                 <group position={[0, baseType === 'Pilotes' ? 0.52 : 0.22, 0]}>
                   {rooms.map(r => {
                     const rw = r.max.x - r.min.x
@@ -356,7 +355,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                     const cz = r.min.y + rl / 2
 
                     return (
-                      <group key={`3d-w-group-${r.id}`}>
+                      <group key={`muro-3d-grp-${r.id}`}>
                         <mesh position={[cx, 1.3, r.min.y]} castShadow><boxGeometry args={[rw, 2.6, 0.12]} /><meshStandardMaterial color={woodColor} roughness={0.65} /></mesh>
                         <mesh position={[cx, 1.3, r.max.y]} castShadow><boxGeometry args={[rw, 2.6, 0.12]} /><meshStandardMaterial color={woodColor} roughness={0.65} /></mesh>
                         <mesh position={[r.min.x, 1.3, cz]} castShadow><boxGeometry args={[0.12, 2.6, rl]} /><meshStandardMaterial color={woodColor} roughness={0.65} /></mesh>
@@ -380,6 +379,14 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </group>
                 )}
               </Center>
+
+              {/* CONTROLES INTEGRALES DE CÁMARA DESBLOQUEADOS */}
+              <OrbitControls 
+                enableDamping 
+                dampingFactor={0.05}
+                maxPolarAngle={Math.PI / 2.05} 
+                makeDefault
+              />
             </Canvas>
           </div>
         )}
