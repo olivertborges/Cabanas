@@ -82,7 +82,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const scale = 35 
 
-  // --- CÁLCULO DE ENVOLVENTE MÁXIMA EN TIEMPO REAL (Para el caminador, techo único y cámara) ---
+  // --- CÁLCULO DE ENVOLVENTE MÁXIMA EN TIEMPO REAL ---
   const boundingBox = useMemo(() => {
     if (rooms.length === 0) return { minX: 0, maxX: 6, minY: 0, maxY: 6, w: 6, l: 6 }
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
@@ -193,14 +193,14 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     setRooms(prev => prev.map(r => r.id === selectedId ? { ...r, [field]: val } : r))
   }
 
-  // --- 📐 CONSTANTES DE ALTURA CONSTRUCTIVA REAL ---
-  const floorThickness = 0.04
-  const hPilotes = 0.60                   
+  // --- 📐 CONSTANTES ARQUITECTÓNICAS ---
+  const floorThickness = 0.15 // Espesor real de la viga/suelo perimetral
+  const hPilotes = 0.80       // Altura libre de los pilotes sobre la tierra
   const floorY = baseType === 'Pilotes' ? hPilotes : 0.20 
-  const hMuros = 2.70                     
-  const hBaranda = 0.75                   
+  const hMuros = 2.60        
+  const hBaranda = 0.80      
 
-  // Generador dinámico de palitos (Balaustres) según el perímetro total
+  // Generador dinámico de palitos (Balaustres) para la baranda perimetral
   const generateBalusters = useMemo(() => {
     const list: Array<{ pos: [number, number, number] }> = []
     if (!hasWalkway) return list
@@ -211,14 +211,12 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     const cX = boundingBox.minX + boundingBox.w / 2
     const cZ = boundingBox.minY + boundingBox.l / 2
 
-    // Cerca perimetral Norte y Sur
     const stepsX = Math.floor(eW / spacing)
     for (let i = 0; i <= stepsX; i++) {
       const x = (cX - eW / 2) + (i * (eW / stepsX))
       list.push({ pos: [x, hBaranda / 2, cZ - eL / 2] })
       list.push({ pos: [x, hBaranda / 2, cZ + eL / 2] })
     }
-    // Cerca perimetral Este y Oeste
     const stepsZ = Math.floor(eL / spacing)
     for (let i = 1; i < stepsZ; i++) {
       const z = (cZ - eL / 2) + (i * (eL / stepsZ))
@@ -231,7 +229,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
   return (
     <div className="flex flex-col xl:flex-row gap-4 p-4 bg-slate-900 text-white rounded-3xl shadow-2xl select-none w-full max-w-7xl mx-auto overflow-hidden">
       
-      {/* 🛠️ PANEL DE CONTROL INTELIGENTE */}
+      {/* 🛠️ PANEL DE CONTROL */}
       <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 shrink-0 max-h-[500px] xl:max-h-[720px] overflow-y-auto">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
@@ -250,7 +248,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </button>
         </div>
 
-        {/* 🎨 SECTOR: COLORES DE MATERIALES */}
+        {/* 🎨 SECTOR: COLORES */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
           <div>
             <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2">🏠 Tono Cabaña y Caminador:</p>
@@ -277,7 +275,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         </div>
 
-        {/* 📏 SECTOR: MEDIDAS PRECISAS DE CAMINADOR Y ALERO */}
+        {/* 📏 SECTOR: MEDIDAS PRECISAS */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2.5">
           <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">📏 Configurar Extensiones:</p>
           <div className="grid grid-cols-2 gap-2">
@@ -300,7 +298,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
             </div>
             <div className="flex items-end pb-1">
               <label className="flex items-center gap-2 text-[11px] text-slate-300">
-                <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} className="rounded accent-amber-500" /> Ver Cerca / Cerca
+                <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} className="rounded accent-amber-500" /> Ver Cerca / Baranda
               </label>
             </div>
           </div>
@@ -318,7 +316,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
               <button onClick={() => addItemToPlan('sillon')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🛋️ Añadir Sillón</button>
             </div>
 
-            {/* EDICIÓN DE MEDIDAS DE MÓDULOS */}
+            {/* EDICIÓN DE MEDIDAS */}
             {selectedRoomObj && (
               <div className="bg-slate-950 p-2.5 rounded border border-slate-700 space-y-2 mt-2">
                 <p className="text-[10px] font-black text-emerald-400">✏️ Editar {selectedRoomObj.name}:</p>
@@ -345,7 +343,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
         )}
       </div>
 
-      {/* 🖥/ VISTA GRÁFICA INTERACTIVA */}
+      {/* 🖥️ VISTA GRÁFICA INTERACTIVA */}
       <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 relative min-h-[500px] sm:min-h-[640px] w-full flex justify-center items-center overflow-hidden">
         {activeTab === '2d' ? (
           <div className="w-full h-full flex flex-col justify-center items-center p-4 bg-[radial-gradient(#334155_1.1px,transparent_1.1px)] [background-size:20px_20px]">
@@ -361,7 +359,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
               onTouchEnd={() => setIsDragging(false)}
               className="w-full h-full max-h-[520px] bg-slate-900 rounded-xl border border-slate-800 shadow-xl touch-none"
             >
-              {/* CAMINADOR PERIMETRAL EN PLANO 2D */}
+              {/* Caminador perimetral 2D */}
               {hasWalkway && (
                 <rect 
                   x={(boundingBox.minX - walkwayWidth) * scale} 
@@ -372,7 +370,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                 />
               )}
 
-              {/* RENDER MÓDULOS DE HABITACIONES */}
+              {/* Habitaciones */}
               {rooms.map(r => {
                 const isSel = r.id === selectedId && selectedType === 'room'
                 return (
@@ -383,7 +381,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                 )
               })}
 
-              {/* RENDER ITEMS INDEPENDIENTES */}
+              {/* Accesorios */}
               {placedItems.map(item => {
                 const isSel = item.id === selectedId && selectedType === 'item'
                 return (
@@ -397,33 +395,33 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         ) : (
           
-          /* 🌲 SCENARIO RENDER 3D PROFESIONAL COMPLETO */
+          /* 🌲 RENDER 3D COMPLETAMENTE CORREGIDO Y CORRIDO HACIA ARRIBA */
           <div className="absolute inset-0 w-full h-full block touch-none">
-            <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, boundingBox.w * 1.4, boundingBox.minY + boundingBox.l * 1.6], fov: 42 }} shadows style={{ position: 'absolute' }}>
+            <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, 8, boundingBox.minY + boundingBox.l + 6], fov: 45 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
-              <ambientLight intensity={0.9} />
-              <directionalLight position={[40, 60, 40]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
+              <ambientLight intensity={0.8} />
+              <directionalLight position={[30, 50, 30]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} />
               
-              {/* Terreno / Césped */}
+              {/* 🌍 TERRENO BASE: FIJO EN ALTURA Y SUBREPRODUCIDO EN Y=0 */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-                <planeGeometry args={[250, 250]} />
+                <planeGeometry args={[300, 300]} />
                 <meshStandardMaterial color="#1a3d10" roughness={0.95} />
               </mesh>
 
-                          <Center>
-                {/* 🏠 ESTRUCTURA COMPLETA ELEVADA SOBRE EL SUELO */}
+              <Center>
+                {/* 🏠 GRUPO MAESTRO ELEVADO: Esto saca de la tierra absolutamente todo */}
                 <group position={[0, floorY, 0]}>
                   
-                  {/* PILOTES (Si es tipo Pilotes) */}
+                  {/* 🪵 PILOTES DE MADERA (Se estiran hacia abajo buscando el terreno en Y=0) */}
                   {baseType === 'Pilotes' && (
-                    <group position={[0, -hPilotes/2, 0]}>
+                    <group position={[0, -floorY, 0]}>
                       {rooms.map((r, rIdx) => (
                         <group key={`p-group-${r.id}-${rIdx}`}>
-                          {[0.1, r.w / 2, r.w - 0.1].map(xOffset =>
-                            [0.1, r.l / 2, r.l - 0.1].map((zOffset, idx) => (
-                              <mesh key={`p-room-${r.id}-${xOffset}-${zOffset}-${idx}`} position={[r.x + xOffset, hPilotes / 2, r.y + zOffset]} castShadow>
-                                <cylinderGeometry args={[0.11, 0.12, hPilotes]} />
-                                <meshStandardMaterial color="#221105" roughness={0.8} />
+                          {[0.15, r.w / 2, r.w - 0.15].map(xOffset =>
+                            [0.15, r.l / 2, r.l - 0.15].map((zOffset, idx) => (
+                              <mesh key={`p-room-${r.id}-${xOffset}-${zOffset}-${idx}`} position={[r.x + xOffset, floorY / 2, r.y + zOffset]} castShadow>
+                                <cylinderGeometry args={[0.10, 0.11, floorY]} />
+                                <meshStandardMaterial color="#2d1606" roughness={0.85} />
                               </mesh>
                             ))
                           )}
@@ -432,15 +430,43 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                     </group>
                   )}
 
-                  {/* SUELO INTERIOR */}
+                  {/* 🧱 PLATEA DE HORMIGÓN (Alternativa si no se usan pilotes) */}
+                  {baseType === 'PlateaHormigon' && (
+                    <mesh position={[boundingBox.minX + boundingBox.w / 2, -floorY / 2, boundingBox.minY + boundingBox.l / 2]} receiveShadow>
+                      <boxGeometry args={[boundingBox.w, floorY, boundingBox.l]} />
+                      <meshStandardMaterial color="#4b5563" roughness={0.6} />
+                    </mesh>
+                  )}
+
+                  {/* 🚶 CAMINADOR / DECK PERIMETRAL (Nivelado perfectamente arriba del pilote) */}
+                  {hasWalkway && (
+                    <group>
+                      <mesh position={[boundingBox.minX + boundingBox.w / 2, floorThickness / 2, boundingBox.minY + boundingBox.l / 2]} receiveShadow>
+                        <boxGeometry args={[boundingBox.w + walkwayWidth * 2, floorThickness, boundingBox.l + walkwayWidth * 2]} />
+                        <meshStandardMaterial color={woodColor} roughness={0.85} />
+                      </mesh>
+
+                      {/* 🚧 CERQUITA / BARANDA PERIMETRAL */}
+                      <group position={[0, floorThickness, 0]}>
+                        {generateBalusters.map((bal, idx) => (
+                          <mesh key={`b-3d-${idx}`} position={bal.pos} castShadow>
+                            <boxGeometry args={[0.025, hBaranda, 0.025]} />
+                            <meshStandardMaterial color="#2d1606" roughness={0.9} />
+                          </mesh>
+                        ))}
+                      </group>
+                    </group>
+                  )}
+
+                  {/* 🧱 SUELOS DE LAS HABITACIONES INTERIORES */}
                   {rooms.map(r => (
-                    <mesh key={`floor-3d-${r.id}`} position={[r.x + r.w / 2, floorThickness / 2, r.y + r.l / 2]} receiveShadow>
+                    <mesh key={`floor-3d-${r.id}`} position={[r.x + r.w / 2, floorThickness / 2 + 0.005, r.y + r.l / 2]} receiveShadow>
                       <boxGeometry args={[r.w - 0.02, floorThickness, r.l - 0.02]} />
                       <meshStandardMaterial color="#5c2d0c" roughness={0.7} />
                     </mesh>
                   ))}
 
-                  {/* PAREDES */}
+                  {/* 🪵 PAREDES EXTRUIDAS: Arrancan de forma estricta sobre el piso estructural */}
                   <group position={[0, floorThickness, 0]}>
                     {rooms.map(r => (
                       <group key={`walls-3d-${r.id}`}>
@@ -452,7 +478,22 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                     ))}
                   </group>
 
-                  {/* TECHO ÚNICO */}
+                  {/* ABERTURAS Y MUEBLES INTERIORES */}
+                  <group position={[0, floorThickness, 0]}>
+                    {placedItems.map(item => {
+                      const isAb = item.type === 'puerta' || item.type === 'ventana'
+                      const height = isAb ? 2.10 : 0.45
+                      const yPos = isAb ? height / 2 + 0.10 : height / 2
+                      return (
+                        <mesh key={`item-3d-${item.id}`} position={[item.x + item.w / 2, yPos, item.y + item.l / 2]} castShadow>
+                          <boxGeometry args={[item.w, height, item.l]} />
+                          <meshStandardMaterial color={item.color} />
+                        </mesh>
+                      )
+                    })}
+                  </group>
+
+                  {/* 🏠 TECHO ÚNICO GENERAL COMPACTO (Cubre toda la envoltura de la cabaña) */}
                   <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
                     <mesh position={[-boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, 0.28]} castShadow>
                       <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
@@ -463,9 +504,37 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                       <meshStandardMaterial color={roofColor} roughness={0.5} />
                     </mesh>
                   </group>
+
+                  {/* ☔ ALEROS BIOCLIMÁTICOS REGULABLES INDEPENDIENTES */}
+                  <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros + 0.08, boundingBox.minY + boundingBox.l / 2]}>
+                    {eaves.n && (
+                      <mesh position={[0, 0, -boundingBox.l / 2 - (eaveLength / 2)]} rotation={[0.08, 0, 0]} castShadow>
+                        <boxGeometry args={[boundingBox.w + 0.2, 0.02, eaveLength]} />
+                        <meshStandardMaterial color={roofColor} roughness={0.6} />
+                      </mesh>
+                    )}
+                    {eaves.s && (
+                      <mesh position={[0, 0, boundingBox.l / 2 + (eaveLength / 2)]} rotation={[-0.08, 0, 0]} castShadow>
+                        <boxGeometry args={[boundingBox.w + 0.2, 0.02, eaveLength]} />
+                        <meshStandardMaterial color={roofColor} roughness={0.6} />
+                      </mesh>
+                    )}
+                    {eaves.e && (
+                      <mesh position={[boundingBox.w / 2 + (eaveLength / 2), 0, 0]} rotation={[0, 0, -0.08]} castShadow>
+                        <boxGeometry args={[eaveLength, 0.02, boundingBox.l + 0.2]} />
+                        <meshStandardMaterial color={roofColor} roughness={0.6} />
+                      </mesh>
+                    )}
+                    {eaves.o && (
+                      <mesh position={[-boundingBox.w / 2 - (eaveLength / 2), 0, 0]} rotation={[0, 0, 0.08]} castShadow>
+                        <boxGeometry args={[eaveLength, 0.02, boundingBox.l + 0.2]} />
+                        <meshStandardMaterial color={roofColor} roughness={0.6} />
+                      </mesh>
+                    )}
+                  </group>
+
                 </group>
               </Center>
-
 
               <OrbitControls enableDamping dampingFactor={0.05} maxPolarAngle={Math.PI / 2.02} makeDefault />
             </Canvas>
