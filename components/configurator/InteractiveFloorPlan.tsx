@@ -5,11 +5,8 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Sky, Center } from '@react-three/drei'
 import * as THREE from 'three'
 
-// --- 📐 INTERFACES DE ARQUITECTURA ---
-interface Point2D {
-  x: number
-  y: number
-}
+// --- 📐 INTERFACES TÉCNICAS DE CONSTRUCCIÓN ---
+interface Point2D { x: number; y: number }
 
 interface CustomWall {
   id: string
@@ -17,38 +14,52 @@ interface CustomWall {
   end: Point2D
   thickness: number
   height: number
-  materialType: 'Madera' | 'Cemento' | 'Vidrio'
+  materialType: 'TablaYeso' | 'TirantesMadera' | 'Vidrio'
 }
 
 export default function InteractiveFloorPlan({ options }: { options?: any }) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
+  
+  // Base de muros (Forma una habitación inicial de 4x4m)
   const [walls, setWalls] = useState<CustomWall[]>([
-    // Estructura inicial de ejemplo (un cuarto básico de 4x4 metros)
-    { id: 'w1', start: { x: 2, y: 2 }, end: { x: 6, y: 2 }, thickness: 0.2, height: 2.4, materialType: 'Madera' },
-    { id: 'w2', start: { x: 6, y: 2 }, end: { x: 6, y: 6 }, thickness: 0.2, height: 2.4, materialType: 'Madera' },
-    { id: 'w3', start: { x: 6, y: 6 }, end: { x: 2, y: 6 }, thickness: 0.2, height: 2.4, materialType: 'Madera' },
-    { id: 'w4', start: { x: 2, y: 6 }, end: { x: 2, y: 2 }, thickness: 0.2, height: 2.4, materialType: 'Madera' },
+    { id: 'w1', start: { x: 2, y: 2 }, end: { x: 6, y: 2 }, thickness: 0.15, height: 2.6, materialType: 'TirantesMadera' },
+    { id: 'w2', start: { x: 6, y: 2 }, end: { x: 6, y: 6 }, thickness: 0.15, height: 2.6, materialType: 'TirantesMadera' },
+    { id: 'w3', start: { x: 6, y: 6 }, end: { x: 2, y: 6 }, thickness: 0.15, height: 2.6, materialType: 'TirantesMadera' },
+    { id: 'w4', start: { x: 2, y: 6 }, end: { x: 2, y: 2 }, thickness: 0.15, height: 2.6, materialType: 'TirantesMadera' },
   ])
 
-  // Estados de dibujo libre y selección
+  // --- ESTADOS DE CONFIGURACIÓN DE OBRA ---
   const [drawingStart, setDrawingStart] = useState<Point2D | null>(null)
   const [selectedWallId, setSelectedWallId] = useState<string | null>('w1')
-  const [globalThickness, setGlobalThickness] = useState<number>(0.2)
-  const [globalHeight, setGlobalHeight] = useState<number>(2.4)
-  const [selectedMaterial, setSelectedMaterial] = useState<'Madera' | 'Cemento' | 'Vidrio'>('Madera')
+  
+  // Parámetros del pincel de dibujo
+  const [currentMaterial, setCurrentMaterial] = useState<'TablaYeso' | 'TirantesMadera' | 'Vidrio'>('TirantesMadera')
+  const [wallThickness, setWallThickness] = useState<number>(0.15)
+  const [wallHeight, setWallHeight] = useState<number>(2.6)
 
-  // Inputs controlados para la pared seleccionada
+  // Opciones de Obra Solicitadas
+  const [baseType, setBaseType] = useState<'Pilotes' | 'PlateaHormigon'>('Pilotes')
+  const [floorFinish, setFloorFinish] = useState<'Madera' | 'Ceramica'>('Madera')
+  const [roofColor, setRoofColor] = useState<string>('#334155') // Color de chapa por defecto (Gris)
+  
+  // Aleros independientes (Norte, Sur, Este, Oeste)
+  const [eaves, setEaves] = useState<{ n: boolean; s: boolean; e: boolean; o: boolean }>({
+    n: true, s: true, e: false, o: false
+  })
+  const [hasWalkway, setHasWalkway] = useState<boolean>(true) // Caminador perimetral de hormigón/madera
+  const [showRoof3D, setShowRoof3D] = useState<boolean>(true) // Para poder ver el interior en el 3D
+
+  // Input controlado para modificar medidas en 2D
   const [inputLength, setInputLength] = useState<string>('4.0')
 
   const svgRef = useRef<SVGSVGElement>(null)
-  const scale = 45 // Factor de escala píxeles/metro para el espacio CAD
+  const scale = 45 // Píxeles por metro
 
-  // --- 🎯 PARED SELECCIONADA ACTUALMENTE ---
+  // --- 🎯 CÁLCULO DE MURO SELECCIONADO Y LONGITUD ---
   const selectedWall = useMemo(() => {
     return walls.find(w => w.id === selectedWallId) || null
   }, [walls, selectedWallId])
 
-  // Calcular la longitud actual de la pared seleccionada para los inputs
   const currentWallLength = useMemo(() => {
     if (!selectedWall) return 0
     const dx = selectedWall.end.x - selectedWall.start.x
@@ -62,17 +73,16 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     }
   }, [selectedWallId, currentWallLength, selectedWall])
 
-  // --- 🛠️ MODIFICAR MEDIDA POR TECLADO (INPUT) ---
+  // --- ✏️ ASIGNACIÓN MANUAL DE MEDIDAS DESDE EL INPUT 2D ---
   const applyManualLength = (valStr: string) => {
     const newLen = parseFloat(valStr)
-    if (!newLen || newLen <= 0.2 || !selectedWall) return
+    if (!newLen || newLen <= 0.1 || !selectedWall) return
 
     const dx = selectedWall.end.x - selectedWall.start.x
     const dy = selectedWall.end.y - selectedWall.start.y
     const currentLen = Math.sqrt(dx * dx + dy * dy)
     if (currentLen === 0) return
 
-    // Proyectar el nuevo punto final manteniendo la misma dirección angular
     const ratio = newLen / currentLen
     const newEndX = selectedWall.start.x + dx * ratio
     const newEndY = selectedWall.start.y + dy * ratio
@@ -83,40 +93,36 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     } : w))
   }
 
-  // --- 🖱️ INTERACCIÓN CLICK CAD: DIBUJO TOTALMENTE LIBRE ---
+  // --- 🖱️ INTERACCIÓN CLICK CAD EN 2D ---
   const handleSvgClick = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
     if (!svgRef.current) return
     const rect = svgRef.current.getBoundingClientRect()
     
-    // Obtener coordenadas relativas al lienzo y aplicar Snap magnético a décimas de metro (0.1m)
     const rawX = (e.clientX - rect.left) / scale
     const rawY = (e.clientY - rect.top) / scale
     const snapX = Math.round(rawX * 10) / 10
     const snapY = Math.round(rawY * 10) / 10
 
     if (!drawingStart) {
-      // Primer click: Fijar inicio del muro
       setDrawingStart({ x: snapX, y: snapY })
     } else {
-      // Segundo click: Crear muro si no es un punto fantasma vacio
       if (drawingStart.x !== snapX || drawingStart.y !== snapY) {
-        const newWallId = `wall-${Date.now()}`
-        const newWall: CustomWall = {
-          id: newWallId,
+        const newId = `wall-${Date.now()}`
+        setWalls([...walls, {
+          id: newId,
           start: drawingStart,
           end: { x: snapX, y: snapY },
-          thickness: globalThickness,
-          height: globalHeight,
-          materialType: selectedMaterial
-        }
-        setWalls([...walls, newWall])
-        setSelectedWallId(newWallId)
+          thickness: wallThickness,
+          height: wallHeight,
+          materialType: currentMaterial
+        }])
+        setSelectedWallId(newId)
       }
       setDrawingStart(null)
     }
   }
 
-  // --- 📐 ENCONTRAR ENVOLVENTE (BOUNDS) EXACTA DE LA CABAÑA ---
+  // --- 📐 ENVOLVENTE DINÁMICA (BOUNDS) PARA ANCLAR TECHOS, ALEROS Y BASES ---
   const cabinBounds = useMemo(() => {
     if (walls.length === 0) return { minX: 0, maxX: 4, minY: 0, maxY: 4, cx: 2, cy: 2, w: 4, l: 4 }
     const allX = walls.flatMap(w => [w.start.x, w.end.x])
@@ -128,10 +134,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     const maxY = Math.max(...allY)
 
     return {
-      minX,
-      maxX,
-      minY,
-      maxY,
+      minX, maxX, minY, maxY,
       cx: minX + (maxX - minX) / 2,
       cy: minY + (maxY - minY) / 2,
       w: Math.max(maxX - minX, 1),
@@ -140,268 +143,261 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
   }, [walls])
 
   return (
-    <div className="flex flex-col xl:flex-row gap-6 p-2 text-white select-none">
+    <div className="flex flex-col xl:flex-row gap-6 p-4 bg-slate-900 text-white rounded-3xl shadow-2xl select-none">
       
-      {/* 🛠️ PANEL DE CONTROL LATERAL */}
-      <div className="w-full xl:w-80 flex flex-col gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800 shrink-0">
+      {/* 🛠️ PANEL DE CONFIGURACIÓN ESTRUCTURAL */}
+      <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800 shrink-0 overflow-y-auto max-h-[700px]">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
-            CAD Core Avanzado v2.5
+            Cotizador Técnico e Ingeniería
           </span>
-          <h2 className="text-lg font-black tracking-tight mt-1">Diseñador de Muros Libres</h2>
-          <p className="text-[11px] text-slate-400 mt-0.5">Hacé clicks en la grilla para levantar estructuras personalizadas.</p>
+          <h2 className="text-lg font-black tracking-tight mt-1">Configurador Fino de Cabañas</h2>
         </div>
 
-        {/* Selector de Modos 2D / 3D */}
+        {/* Interruptor de Vistas */}
         <div className="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
-          <button 
-            onClick={() => setActiveTab('2d')} 
-            className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '2d' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
-          >
-            📐 Plano Dibujo 2D
+          <button onClick={() => setActiveTab('2d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '2d' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
+            📐 Plano 2D (Medidas)
           </button>
-          <button 
-            onClick={() => setActiveTab('3d')} 
-            className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '3d' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}
-          >
-            🪵 Render Vivo 3D
+          <button onClick={() => setActiveTab('3d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '3d' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>
+            🪵 Render 3D Inmersivo
           </button>
         </div>
 
         <hr className="border-slate-800" />
 
-        {/* Configuración de Pincel de Muro Activo */}
-        <div className="space-y-3">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">📐 Propiedades del Pincel:</p>
-          
-          <div>
-            <label className="text-[10px] text-slate-400 font-bold block mb-1">Material Estructural:</label>
-            <select 
-              value={selectedMaterial} 
-              onChange={(e) => setSelectedMaterial(e.target.value as any)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-emerald-500"
-            >
-              <option value="Madera">🪵 Troncos Rústicos de Cabaña</option>
-              <option value="Cemento">🧱 Cemento Sólido Alisado</option>
-              <option value="Vidrio">🪟 Panel Acristalado Térmico</option>
-            </select>
-          </div>
+        {/* 🧱 1. MATERIALES DE MUROS */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">🧱 Materiales del Muro Activo:</p>
+          <select 
+            value={currentMaterial} 
+            onChange={(e) => setCurrentMaterial(e.target.value as any)}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs font-bold text-white outline-none"
+          >
+            <option value="TirantesMadera">🪵 Estructura de Tirantes de Madera</option>
+            <option value="TablaYeso">🧱 Placas de Tabla Yeso (Durlock)</option>
+            <option value="Vidrio">🪟 Ventanal Glaseado / Vidriería</option>
+          </select>
+        </div>
 
+        {/* 🎨 2. ACABADOS, PISOS Y CIMENTACIÓN */}
+        <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
+          <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">🏗️ Cimentación y Suelos:</p>
+          
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[10px] text-slate-400 font-bold block mb-1">Espesor (m):</label>
-              <input 
-                type="number" step="0.05" min="0.1" max="0.5"
-                value={globalThickness}
-                onChange={(e) => setGlobalThickness(parseFloat(e.target.value) || 0.2)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs font-bold text-white outline-none"
-              />
+              <label className="text-[10px] text-slate-400 block mb-1">Base Estructural:</label>
+              <select value={baseType} onChange={(e) => setBaseType(e.target.value as any)} className="w-full bg-slate-950 border border-slate-700 p-1.5 rounded text-xs font-bold">
+                <option value="Pilotes">🪵 Pilotes de Madera</option>
+                <option value="PlateaHormigon">🧱 Platea de Hormigón</option>
+              </select>
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 font-bold block mb-1">Altura Muro (m):</label>
-              <input 
-                type="number" step="0.1" min="1.5" max="4"
-                value={globalHeight}
-                onChange={(e) => setGlobalHeight(parseFloat(e.target.value) || 2.4)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs font-bold text-white outline-none"
-              />
+              <label className="text-[10px] text-slate-400 block mb-1">Revestimiento Piso:</label>
+              <select value={floorFinish} onChange={(e) => setFloorFinish(e.target.value as any)} className="w-full bg-slate-950 border border-slate-700 p-1.5 rounded text-xs font-bold">
+                <option value="Madera">🪵 Entablonado Madera</option>
+                <option value="Ceramica">🧱 Cerámica Premium</option>
+              </select>
+            </div>
+          </div>
+
+          {/* 🏠 3. COLOR DE CHAPA DE TECHO */}
+          <div>
+            <label className="text-[10px] text-slate-400 block mb-1">Color de Chapa del Techo:</label>
+            <div className="flex gap-2">
+              {['#334155', '#991b1b', '#14532d', '#1e3a8a'].map(c => (
+                <button 
+                  key={c} onClick={() => setRoofColor(c)} 
+                  className={`w-6 h-6 rounded-full border-2 ${roofColor === c ? 'border-white scale-110' : 'border-transparent'}`} 
+                  style={{ backgroundColor: c }}
+                />
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Editor Numérico de Elemento Seleccionado */}
+        {/* 📐 4. SELECCIÓN DE ALEROS POR LADO */}
+        <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-2">
+          <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">☔ Configuración de Aleros:</p>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={eaves.n} onChange={(e) => setEaves({...eaves, n: e.target.checked})} /> Alero Norte (Frente)</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={eaves.s} onChange={(e) => setEaves({...eaves, s: e.target.checked})} /> Alero Sur (Fondo)</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={eaves.e} onChange={(e) => setEaves({...eaves, e: e.target.checked})} /> Alero Este (Der)</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={eaves.o} onChange={(e) => setEaves({...eaves, o: e.target.checked})} /> Alero Oeste (Izq)</label>
+          </div>
+          <label className="flex items-center gap-2 text-xs pt-1 border-t border-slate-800 mt-1">
+            <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} />
+            🚶‍♂️ Añadir caminador perimetral
+          </label>
+        </div>
+
+        {/* 👁️ 5. CONTROL DE COBERTURA (VER INTERIOR) */}
+        {activeTab === '3d' && (
+          <button 
+            onClick={() => setShowRoof3D(!showRoof3D)} 
+            className={`w-full py-1.5 rounded-xl text-xs font-bold border transition ${showRoof3D ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-amber-600 border-amber-500 text-white animate-pulse'}`}
+          >
+            {showRoof3D ? '🏠 Quitar Techo (Ver Distribución Interior)' : '🏠 Colocar Techo'}
+          </button>
+        )}
+
+        {/* ✏️ MODIFICADOR DE MEDIDA DE PARED SELECCIONADA */}
         {selectedWall && (
-          <div className="p-4 bg-slate-900 rounded-xl border-2 border-emerald-500/30 space-y-3 mt-2">
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">✏️ Muro Seleccionado</span>
-              <button 
-                onClick={() => {
-                  setWalls(prev => prev.filter(w => w.id !== selectedWallId))
-                  setSelectedWallId(null)
-                }}
-                className="text-[10px] text-red-400 hover:text-red-300 font-bold underline"
-              >
-                Eliminar Muro
-              </button>
+          <div className="p-3 bg-slate-900 rounded-xl border-2 border-emerald-500/30 space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-bold text-emerald-400 uppercase">
+              <span>📐 Modificar Largo de Pared</span>
+              <button onClick={() => { setWalls(prev => prev.filter(w => w.id !== selectedWallId)); setSelectedWallId(null); }} className="text-red-400 underline">Borrar</button>
             </div>
-
-            <div>
-              <label className="text-[11px] text-slate-400 block font-bold mb-1">Extensión Exacta (Longitud):</label>
-              <div className="flex items-center bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5">
-                <input 
-                  type="number" step="0.1" min="0.3"
-                  value={inputLength} 
-                  onChange={(e) => setInputLength(e.target.value)}
-                  onBlur={() => applyManualLength(inputLength)}
-                  className="w-full bg-transparent text-xs font-mono font-bold text-white outline-none"
-                />
-                <span className="text-xs text-slate-500 font-mono">m</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button 
-                onClick={() => setWalls(prev => prev.map(w => w.id === selectedWallId ? { ...w, materialType: 'Madera' } : w))}
-                className={`py-1 text-[10px] font-bold rounded ${selectedWall.materialType === 'Madera' ? 'bg-amber-700' : 'bg-slate-950'}`}
-              >
-                Madera
-              </button>
-              <button 
-                onClick={() => setWalls(prev => prev.map(w => w.id === selectedWallId ? { ...w, materialType: 'Vidrio' } : w))}
-                className={`py-1 text-[10px] font-bold rounded ${selectedWall.materialType === 'Vidrio' ? 'bg-sky-700' : 'bg-slate-950'}`}
-              >
-                Vidrio
-              </button>
+            <div className="flex items-center bg-slate-950 border border-slate-700 rounded-lg px-2 py-1">
+              <input 
+                type="number" step="0.1"
+                value={inputLength} 
+                onChange={(e) => setInputLength(e.target.value)}
+                onBlur={() => applyManualLength(inputLength)}
+                className="w-full bg-transparent text-xs font-mono font-bold outline-none text-white"
+              />
+              <span className="text-xs text-slate-500 font-mono">m</span>
             </div>
           </div>
         )}
-
-        <button 
-          onClick={() => { setWalls([]); setSelectedWallId(null); setDrawingStart(null); }}
-          className="w-full bg-red-950/40 border border-red-800 text-red-400 py-2 rounded-xl text-xs font-bold hover:bg-red-900/50 transition mt-auto"
-        >
-          🗑️ Limpiar Todo el Lienzo
-        </button>
       </div>
 
-      {/* 🖥️ ÁREA DE TRABAJO EN VIVO (RESPONSIVA) */}
-      <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden relative min-h-[520px]">
+      {/* 🖥️ LIENZO INTERACTIVO */}
+      <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden relative min-h-[560px]">
         
         {activeTab === '2d' ? (
-          <div className="w-full h-full flex justify-center items-center bg-[radial-gradient(#334155_1.2px,transparent_1.2px)] [background-size:22px_22px] p-4">
-            <svg 
-              ref={svgRef} 
-              width="100%" 
-              height="480" 
-              onClick={handleSvgClick}
-              className="bg-slate-900 rounded-xl border border-slate-800 overflow-visible cursor-crosshair max-w-2xl shadow-2xl"
-            >
-              {/* Renderizar muros terminados */}
+          <div className="w-full h-full flex justify-center items-center bg-[radial-gradient(#334155_1.2px,transparent_1.2px)] [background-size:25px_25px] p-4">
+            <svg ref={svgRef} width="100%" height="520" onClick={handleSvgClick} className="bg-slate-900 rounded-xl border border-slate-800 overflow-visible cursor-crosshair max-w-2xl shadow-2xl">
+              
+              {/* Caminador perimetral proyectado en 2D */}
+              {hasWalkway && (
+                <rect 
+                  x={(cabinBounds.minX - 1) * scale} y={(cabinBounds.minY - 1) * scale}
+                  width={(cabinBounds.w + 2) * scale} height={(cabinBounds.l + 2) * scale}
+                  fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4"
+                />
+              )}
+
+              {/* Paredes */}
               {walls.map(w => {
                 const isSel = w.id === selectedWallId
-                let colorMat = '#b45309' // madera
-                if (w.materialType === 'Cemento') colorMat = '#64748b'
-                if (w.materialType === 'Vidrio') colorMat = '#38bdf8'
+                let strokeColor = '#b45309'
+                if (w.materialType === 'TablaYeso') strokeColor = '#cbd5e1'
+                if (w.materialType === 'Vidrio') strokeColor = '#38bdf8'
 
                 return (
-                  <line 
-                    key={w.id} 
-                    x1={w.start.x * scale} y1={w.start.y * scale} 
-                    x2={w.end.x * scale} y2={w.end.y * scale} 
-                    stroke={isSel ? '#10b981' : colorMat} 
-                    strokeWidth={w.thickness * scale} 
-                    strokeLinecap="round"
-                    className="transition-colors duration-150 cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation() // Evita activar el dibujo al seleccionar muro
-                      setSelectedWallId(w.id)
-                    }}
-                  />
+                  <g key={w.id}>
+                    <line 
+                      x1={w.start.x * scale} y1={w.start.y * scale} 
+                      x2={w.end.x * scale} y2={w.end.y * scale} 
+                      stroke={isSel ? '#10b981' : strokeColor} 
+                      strokeWidth={w.thickness * scale} 
+                      strokeLinecap="round"
+                      className="cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); setSelectedWallId(w.id) }}
+                    />
+                  </g>
                 )
               })}
 
-              {/* Nodo guía del primer click en pleno dibujo */}
-              {drawingStart && (
-                <g>
-                  <circle cx={drawingStart.x * scale} cy={drawingStart.y * scale} r="6" className="fill-emerald-400 animate-ping" />
-                  <circle cx={drawingStart.x * scale} cy={drawingStart.y * scale} r="5" className="fill-emerald-500 stroke-white stroke-2" />
-                </g>
-              )}
+              {/* Nodo guía primer click */}
+              {drawingStart && <circle cx={drawingStart.x * scale} cy={drawingStart.y * scale} r="6" className="fill-emerald-400 animate-ping" />}
             </svg>
           </div>
         ) : (
-          /* ☀️ RENDERIZADOR INTERACTIVO 3D TOTALMENTE ENCUADRADO */
-          <div className="w-full h-[520px] relative">
-            <Canvas camera={{ position: [cabinBounds.cx, globalHeight * 2.5, cabinBounds.cy + 6], fov: 42 }} shadows>
+          
+          /* ☀️ RENDERIZADOR 3D AVANZADO CON DETALLES DE OBRA COMPLETA */
+          <div className="w-full h-[560px] relative">
+            <Canvas camera={{ position: [cabinBounds.cx, 6, cabinBounds.cy + 7], fov: 40 }} shadows>
               <color attach="background" args={['#0f172a']} />
-              <Sky sunPosition={[80, 50, 100]} />
-              <ambientLight intensity={0.8} />
-              <directionalLight position={[30, 45, 20]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
+              <Sky sunPosition={[100, 40, 100]} />
+              <ambientLight intensity={showRoof3D ? 0.6 : 1.2} />
+              <directionalLight position={[20, 40, 20]} intensity={1.5} castShadow />
               
-              {/* <Center> fuerza a ThreeJS a tomar la geometría resultante de los muros y encuadrarla exactamente en el centro óptimo */}
               <Center>
                 
-                {/* PILOTES DE BASE: Ubicados milimétricamente en las esquinas de la envolvente perimetral */}
-                <group position={[0, -0.2, 0]}>
-                  <mesh position={[cabinBounds.minX, 0.3, cabinBounds.minY]} castShadow>
-                    <cylinderGeometry args={[0.15, 0.18, 0.6, 12]} />
-                    <meshStandardMaterial color="#2d1606" roughness={0.9} />
+                {/* 🧱 CIMENTACIÓN: PLATEA DE HORMIGÓN O PILOTES DE MADERA */}
+                {baseType === 'PlateaHormigon' ? (
+                  <mesh position={[cabinBounds.cx, 0.1, cabinBounds.cy]} receiveShadow>
+                    <boxGeometry args={[cabinBounds.w + 0.1, 0.2, cabinBounds.l + 0.1]} />
+                    <meshStandardMaterial color="#57534e" roughness={0.8} /> {/* Hormigón rústico */}
                   </mesh>
-                  <mesh position={[cabinBounds.maxX, 0.3, cabinBounds.minY]} castShadow>
-                    <cylinderGeometry args={[0.15, 0.18, 0.6, 12]} />
-                    <meshStandardMaterial color="#2d1606" roughness={0.9} />
-                  </mesh>
-                  <mesh position={[cabinBounds.minX, 0.3, cabinBounds.maxY]} castShadow>
-                    <cylinderGeometry args={[0.15, 0.18, 0.6, 12]} />
-                    <meshStandardMaterial color="#2d1606" roughness={0.9} />
-                  </mesh>
-                  <mesh position={[cabinBounds.maxX, 0.3, cabinBounds.maxY]} castShadow>
-                    <cylinderGeometry args={[0.15, 0.18, 0.6, 12]} />
-                    <meshStandardMaterial color="#2d1606" roughness={0.9} />
-                  </mesh>
-                </group>
+                ) : (
+                  <group position={[0, -0.2, 0]}>
+                    {/* Pilotes calculados en los 4 vértices del armazón perimetral */}
+                    <mesh position={[cabinBounds.minX, 0.3, cabinBounds.minY]}><cylinderGeometry args={[0.15, 0.15, 0.6]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                    <mesh position={[cabinBounds.maxX, 0.3, cabinBounds.minY]}><cylinderGeometry args={[0.15, 0.15, 0.6]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                    <mesh position={[cabinBounds.minX, 0.3, cabinBounds.maxY]}><cylinderGeometry args={[0.15, 0.15, 0.6]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                    <mesh position={[cabinBounds.maxX, 0.3, cabinBounds.maxY]}><cylinderGeometry args={[0.15, 0.15, 0.6]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                  </group>
+                )}
 
-                {/* PLATAFORMA DE SUELO: Cubre exactamente el perímetro interno dinámico */}
-                <mesh position={[cabinBounds.cx, 0.05, cabinBounds.cy]} receiveShadow>
-                  <boxGeometry args={[cabinBounds.w + 0.3, 0.1, cabinBounds.l + 0.3]} />
-                  <meshStandardMaterial color="#a16207" roughness={0.8} /> {/* Madera de cubierta */}
+                {/* 🚶‍♂️ WALKWAY / ACERAS CAMINADORAS */}
+                {hasWalkway && (
+                  <mesh position={[cabinBounds.cx, 0.02, cabinBounds.cy]} receiveShadow>
+                    <boxGeometry args={[cabinBounds.w + 1.6, 0.04, cabinBounds.l + 1.6]} />
+                    <meshStandardMaterial color="#78716c" roughness={0.9} />
+                  </mesh>
+                )}
+
+                {/* 🪵 ACABADO DE REVESTIMIENTO DE PISO INTERIOR */}
+                <mesh position={[cabinBounds.cx, 0.21, cabinBounds.cy]}>
+                  <boxGeometry args={[cabinBounds.w - 0.05, 0.02, cabinBounds.l - 0.05]} />
+                  <meshStandardMaterial color={floorFinish === 'Madera' ? '#854d0e' : '#a2a1a8'} roughness={floorFinish === 'Madera' ? 0.6 : 0.2} />
                 </mesh>
 
-                {/* MOTOR DE EXTRUSIÓN Y ROTACIÓN DE CADA MURO INDEPENDIENTE */}
+                {/* 🧱 LEVANTAMIENTO TÉCNICO DE PAREDES */}
                 {walls.map(w => {
                   const dx = w.end.x - w.start.x
-                  const dz = w.end.y - w.start.y // En 3D el eje Y del plano es el eje Z
+                  const dz = w.end.y - w.start.y
                   const length = Math.sqrt(dx * dx + dz * dz)
                   if (length === 0) return null
-
                   const angle = Math.atan2(dz, dx)
-                  
-                  // Definición de materiales visuales profesionales
-                  let matColor = "#b45309"
-                  let matRoughness = 0.7
-                  let matOpacity = 1.0
-                  let isTransparent = false
 
-                  if (w.materialType === 'Cemento') {
-                    matColor = "#78716c"
-                    matRoughness = 0.9
+                  // Detalle de materiales reales solicitado
+                  let mColor = '#b45309' // Tirantes de madera por defecto
+                  let mRoughness = 0.7
+                  let mOpacity = 1.0
+                  let trans = false
+
+                  if (w.materialType === 'TablaYeso') {
+                    mColor = '#f1f5f9' // Yeso blanco técnico
+                    mRoughness = 0.9
                   } else if (w.materialType === 'Vidrio') {
-                    matColor = "#bae6fd"
-                    matRoughness = 0.1
-                    matOpacity = 0.4
-                    isTransparent = true
+                    mColor = '#e0f2fe'
+                    mRoughness = 0.1
+                    mOpacity = 0.35
+                    trans = true
                   }
 
                   return (
-                    <mesh 
-                      key={`3d-${w.id}`} 
-                      position={[w.start.x + dx / 2, w.height / 2 + 0.1, w.start.y + dz / 2]} 
-                      rotation={[0, -angle, 0]}
-                      castShadow
-                    >
+                    <mesh key={`3d-w-${w.id}`} position={[w.start.x + dx/2, w.height/2 + 0.2, w.start.y + dz/2]} rotation={[0, -angle, 0]} castShadow>
                       <boxGeometry args={[length, w.height, w.thickness]} />
-                      <meshStandardMaterial 
-                        color={matColor} 
-                        roughness={matRoughness} 
-                        transparent={isTransparent} 
-                        opacity={matOpacity} 
-                      />
+                      <meshStandardMaterial color={mColor} roughness={mRoughness} transparent={trans} opacity={mOpacity} side={THREE.DoubleSide} />
                     </mesh>
                   )
                 })}
 
-                {/* TECHO INDUSTRIAL AJUSTABLE: Se escala automáticamente a los límites del plano */}
-                {walls.length > 0 && (
-                  <group position={[cabinBounds.cx, globalHeight + 0.3, cabinBounds.cy]}>
-                    {/* Ala Izquierda del Techo a dos aguas */}
-                    <mesh position={[-cabinBounds.w / 4, cabinBounds.w * 0.08, 0]} rotation={[0, 0, 0.25]} castShadow>
-                      <boxGeometry args={[cabinBounds.w / 1.6 + 0.4, 0.08, cabinBounds.l + 0.6]} />
-                      <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
+                {/* 🏠 TECHO INTELIGENTE MODULAR CON ALEROS CONFIGURABLES */}
+                {showRoof3D && walls.length > 0 && (
+                  <group position={[cabinBounds.cx, wallHeight + 0.4, cabinBounds.cy]}>
+                    {/* Techo Ala Izquierda */}
+                    <mesh position={[-cabinBounds.w / 4, cabinBounds.w * 0.08, 0]} rotation={[0, 0, 0.22]} castShadow>
+                      <boxGeometry args={[
+                        cabinBounds.w / 1.6 + (eaves.o ? 0.8 : 0), 
+                        0.06, 
+                        cabinBounds.l + (eaves.n ? 0.5 : 0) + (eaves.s ? 0.5 : 0)
+                      ]} />
+                      <meshStandardMaterial color={roofColor} metalness={0.5} roughness={0.4} />
                     </mesh>
-                    {/* Ala Derecha del Techo a dos aguas */}
-                    <mesh position={[cabinBounds.w / 4, cabinBounds.w * 0.08, 0]} rotation={[0, 0, -0.25]} castShadow>
-                      <boxGeometry args={[cabinBounds.w / 1.6 + 0.4, 0.08, cabinBounds.l + 0.6]} />
-                      <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
+                    {/* Techo Ala Derecha */}
+                    <mesh position={[cabinBounds.w / 4, cabinBounds.w * 0.08, 0]} rotation={[0, 0, -0.22]} castShadow>
+                      <boxGeometry args={[
+                        cabinBounds.w / 1.6 + (eaves.e ? 0.8 : 0), 
+                        0.06, 
+                        cabinBounds.l + (eaves.n ? 0.5 : 0) + (eaves.s ? 0.5 : 0)
+                      ]} />
+                      <meshStandardMaterial color={roofColor} metalness={0.5} roughness={0.4} />
                     </mesh>
                   </group>
                 )}
