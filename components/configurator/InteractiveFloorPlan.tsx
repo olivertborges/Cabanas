@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Center } from '@react-three/drei'
-import { ConfigOptions } from '../utils/priceCalculator'
+import { ConfigOptions } from '../../utils/priceCalculator'
 
 interface Room {
   id: string
