@@ -22,11 +22,13 @@ interface Room {
   items: WallItem[]
 }
 
-const ROOM_TEMPLATES = {
-  Living: { name: 'Living Cocina', color: '#fef08a', stroke: '#a16207', icon: '🛋️🍳' },
+const ROOM_TEMPLATES: Record<string, { name: string; color: string; stroke: string; icon: string }> = {
+  Living: { name: 'Living Cocina', color: '#fef08a', stroke: '#a16207', icon: '🛋️' },
   Dormitorio: { name: 'Dormitorio', color: '#bfdbfe', stroke: '#1e40af', icon: '🛏️' },
   Baño: { name: 'Baño Completo', color: '#fbcfe8', stroke: '#9d174d', icon: '🚽' },
+  Cocina: { name: 'Cocina Gourmet', color: '#fbcfe8', stroke: '#be185d', icon: '🍳' }, // 👈 Agregada con su tipado explícito
 }
+
 
 export default function InteractiveFloorPlan({ options }: { options?: any }) {
 
