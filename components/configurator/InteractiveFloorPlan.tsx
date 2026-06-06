@@ -1,442 +1,575 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Grid, Center } from '@react-three/drei'
-import { ConfigOptions } from '@/utils/priceCalculator'
+import { OrbitControls, Grid } from '@react-three/drei'
+import * as THREE from 'three'
+
+interface Point2D { x: number; y: number }
+
+interface WallItem {
+  id: string
+  type: 'puerta' | 'ventana'
+  x: number 
+  y: number 
+}
 
 interface Room {
   id: string
   name: string
-  x: number
-  y: number
-  width: number
-  height: number
-  color: string
+  type: 'Dormitorio' | 'Baño' | 'Cocina' | 'Living'
+  vertices: Point2D[] 
+  items: WallItem[]
 }
 
-interface InteractiveFloorPlanProps {
-  options: ConfigOptions
-  onUpdate?: (rooms: Room[]) => void
+interface PorchStructure {
+  id: string
+  name: string
+  style: 'alero' | 'pilotes' // Alero simple o caminador elevado con postes
+  vertices: Point2D[]
 }
 
-const roomColors: Record<string, string> = {
-  'Dormitorio': '#86efac',
-  'Baño': '#fef08a',
-  'Cocina': '#fbcfe8',
-  'Living': '#bae6fd',
-  'Comedor': '#ddd6fe',
-  'Pasillo': '#e5e5e5',
+const roomStyles: Record<string, { bg: string; stroke: string; icon: string }> = {
+  'Dormitorio': { bg: '#fbfbfb', stroke: '#854d0e', icon: '🛏️' },
+  'Baño': { bg: '#f4f4f5', stroke: '#a16207', icon: '🚽' },
+  'Cocina': { bg: '#fafaf9', stroke: '#ca8a04', icon: '🍳' },
+  'Living': { bg: '#ffffff', stroke: '#78350f', icon: '🛋️' },
 }
 
-const roomTypes = [
-  { name: 'Dormitorio', icon: '🛏️', defaultSize: { width: 3, height: 3 } },
-  { name: 'Baño', icon: '🚽', defaultSize: { width: 2, height: 2 } },
-  { name: 'Cocina', icon: '🍳', defaultSize: { width: 3, height: 2.5 } },
-  { name: 'Living', icon: '🛋️', defaultSize: { width: 4, height: 3 } },
-  { name: 'Comedor', icon: '🍽️', defaultSize: { width: 3, height: 2.5 } },
-  { name: 'Pasillo', icon: '🚪', defaultSize: { width: 1.5, height: 3 } },
-]
-
-export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveFloorPlanProps) {
+export default function CabinArchitectMaster() {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
+  const [activeElement, setActiveElement] = useState<{ type: 'room' | 'porch'; id: string }>({ type: 'room', id: 'r1' })
+  
+  // Estructura de ambientes
   const [rooms, setRooms] = useState<Room[]>([
-    { id: '1', name: 'Dormitorio 1', x: 0, y: 0, width: 3, height: 3, color: roomColors['Dormitorio'] },
-    { id: '2', name: 'Baño 1', x: 3.5, y: 0, width: 2, height: 2, color: roomColors['Baño'] },
-    { id: '3', name: 'Living', x: 0, y: 3.5, width: 3.5, height: 3, color: roomColors['Living'] },
-    { id: '4', name: 'Cocina', x: 3.5, y: 3.5, width: 2.5, height: 2.5, color: roomColors['Cocina'] },
+    {
+      id: 'r1',
+      name: 'Módulo Living/Cocina',
+      type: 'Living',
+      vertices: [{ x: 1, y: 1 }, { x: 6, y: 1 }, { x: 6, y: 5 }, { x: 1, y: 5 }],
+      items: [
+        { id: 'p1', type: 'puerta', x: 3.5, y: 5 },
+        { id: 'v1', type: 'ventana', x: 6, y: 3 }
+      ]
+    },
+    {
+      id: 'r2',
+      name: 'Habitación Principal',
+      type: 'Dormitorio',
+      vertices: [{ x: 6, y: 1 }, { x: 10, y: 1 }, { x: 10, y: 5 }, { x: 6, y: 5 }],
+      items: [
+        { id: 'v2', type: 'ventana', x: 8, y: 1 }
+      ]
+    }
   ])
-  
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [resizing, setResizing] = useState<string | null>(null)
-  const [resizeEdge, setResizeEdge] = useState<string | null>(null)
-  
-  const getCabinLength = (): number => {
-    if (options.size === 'custom' && options.customSize) {
-      return options.customSize
-    }
-    const sizes: Record<string, number> = {
-      '6x3': 3, '6x4': 4, '6x5': 5, '6x6': 6,
-      '6x7': 7, '6x8': 8, '6x9': 9, '6x10': 10, '6x12': 12
-    }
-    return sizes[options.size] || 6
-  }
-  
-  const cabinWidth = 6 
-  const cabinLength = getCabinLength()
-  const scale = 55 // Ajustado para un calce óptimo en celulares
-  
-  const svgWidth = cabinWidth * scale + 40
-  const svgHeight = cabinLength * scale + 40
-  
-  // Extrae la coordenada X e Y sin importar si viene de Mouse o Touch
-  const getClientCoords = (e: React.MouseEvent | React.TouchEvent) => {
-    if ('touches' in e) {
-      if (e.touches.length === 0) return null
-      return { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    }
-    return { x: e.clientX, y: e.clientY }
-  }
 
-  // Handlers para Mover Habitación (Soporta ambos entornos)
-  const handleStartDrag = (roomId: string, e: React.MouseEvent | React.TouchEvent) => {
-    // Si es touch, prevenimos que la pantalla haga scroll involuntario
-    if (e.cancelable) e.preventDefault()
-    e.stopPropagation()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
+  // Sistema de porches con transformación totalmente libre (Múltiples zonas)
+  const [porches, setPorches] = useState<PorchStructure[]>([
+    {
+      id: 'p-main',
+      name: 'Galería Frontal',
+      style: 'pilotes',
+      vertices: [{ x: 1, y: 5 }, { x: 10, y: 5 }, { x: 10, y: 6.5 }, { x: 1, y: 6.5 }]
+    }
+  ])
 
-    setSelectedRoom(roomId)
-    setIsDragging(true)
-    setDragStart({ x: coords.x, y: coords.y })
-  }
+  const svgRef = useRef<SVGSVGElement>(null)
   
-  const handleMoveDrag = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDragging || !selectedRoom) return
-    if (e.cancelable) e.preventDefault()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
-    
-    const dx = (coords.x - dragStart.x) / scale
-    const dy = (coords.y - dragStart.y) / scale
-    
-    setRooms(rooms.map(room => {
-      if (room.id === selectedRoom) {
-        const newX = Math.max(0, Math.min(cabinWidth - room.width, room.x + dx))
-        const newY = Math.max(0, Math.min(cabinLength - room.height, room.y + dy))
-        return { ...room, x: newX, y: newY }
-      }
-      return room
+  // Registro de arrastre unificado
+  const dragInfo = useRef<{
+    type: 'vertex' | 'room-center' | 'item' | 'porch-vertex' | 'porch-center'
+    roomId?: string
+    porchId?: string
+    index?: number
+    itemId?: string
+    startX?: number
+    startY?: number
+    originalVertices?: Point2D[]
+    originalItemPos?: { x: number; y: number }
+  } | null>(null)
+
+  const scale = 45 
+
+  // --- DETECTOR DE CLIC DERECHO PARA CREAR FORMAS EN L O POLÍGONOS RAROS ---
+  const handleRightClickWall = (roomId: string, idx: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const mX = Math.round(((e.clientX - rect.left) / scale) * 10) / 10
+    const mY = Math.round(((e.clientY - rect.top) / scale) * 10) / 10
+
+    setRooms(prev => prev.map(r => {
+      if (r.id !== roomId) return r
+      const nv = [...r.vertices]
+      nv.splice(idx + 1, 0, { x: mX, y: mY })
+      return { ...r, vertices: nv }
     }))
-    setDragStart({ x: coords.x, y: coords.y })
   }
-  
-  const handleEndInteraction = () => {
-    setIsDragging(false)
-    setResizing(null)
-    setResizeEdge(null)
-    if (onUpdate) onUpdate(rooms)
-  }
-  
-  // Handlers para Redimensionar Habitación (Soporta ambos entornos)
-  const handleStartResize = (roomId: string, edge: string, e: React.MouseEvent | React.TouchEvent) => {
-    if (e.cancelable) e.preventDefault()
-    e.stopPropagation()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
 
-    setResizing(roomId)
-    setResizeEdge(edge)
-    setDragStart({ x: coords.x, y: coords.y })
-  }
-  
-  const handleMoveResize = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!resizing || !resizeEdge) return
-    if (e.cancelable) e.preventDefault()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
-    
-    const dx = (coords.x - dragStart.x) / scale
-    const dy = (coords.y - dragStart.y) / scale
-    
-    setRooms(rooms.map(room => {
-      if (room.id === resizing) {
-        let newWidth = room.width
-        let newHeight = room.height
-        
-        if (resizeEdge.includes('e')) newWidth = Math.max(1, room.width + dx)
-        if (resizeEdge.includes('s')) newHeight = Math.max(1, room.height + dy)
-        
-        newWidth = Math.min(cabinWidth - room.x, newWidth)
-        newHeight = Math.min(cabinLength - room.y, newHeight)
-        
-        return { ...room, width: newWidth, height: newHeight }
-      }
-      return room
+  const handleRightClickPorch = (porchId: string, idx: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const mX = Math.round(((e.clientX - rect.left) / scale) * 10) / 10
+    const mY = Math.round(((e.clientY - rect.top) / scale) * 10) / 10
+
+    setPorches(prev => prev.map(p => {
+      if (p.id !== porchId) return p
+      const nv = [...p.vertices]
+      nv.splice(idx + 1, 0, { x: mX, y: mY })
+      return { ...p, vertices: nv }
     }))
-    setDragStart({ x: coords.x, y: coords.y })
   }
-  
-  const addRoom = (type: typeof roomTypes[0]) => {
-    const newRoom: Room = {
-      id: Date.now().toString(),
-      name: `${type.name} ${rooms.filter(r => r.name.includes(type.name)).length + 1}`,
-      x: 0,
-      y: 0,
-      width: type.defaultSize.width,
-      height: type.defaultSize.height,
-      color: roomColors[type.name] || '#f0fdf4'
+
+  // --- INICIADORES DE ARRASTRE SIN BLOQUEOS ---
+  const initVertexDrag = (roomId: string, index: number, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    dragInfo.current = { type: 'vertex', roomId, index }
+    setActiveElement({ type: 'room', id: roomId })
+  }
+
+  const initPorchVertexDrag = (porchId: string, index: number, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    dragInfo.current = { type: 'porch-vertex', porchId, index }
+    setActiveElement({ type: 'porch', id: porchId })
+  }
+
+  const initRoomCenterDrag = (room: Room, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    if (!svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    dragInfo.current = {
+      type: 'room-center',
+      roomId: room.id,
+      startX: (e.clientX - rect.left) / scale,
+      startY: (e.clientY - rect.top) / scale,
+      originalVertices: JSON.parse(JSON.stringify(room.vertices))
     }
-    setRooms([...rooms, newRoom])
+    setActiveElement({ type: 'room', id: room.id })
   }
-  
-  const removeRoom = (roomId: string) => {
-    setRooms(rooms.filter(r => r.id !== roomId))
+
+  const initPorchCenterDrag = (porch: PorchStructure, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    if (!svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    dragInfo.current = {
+      type: 'porch-center',
+      porchId: porch.id,
+      startX: (e.clientX - rect.left) / scale,
+      startY: (e.clientY - rect.top) / scale,
+      originalVertices: JSON.parse(JSON.stringify(porch.vertices))
+    }
+    setActiveElement({ type: 'porch', id: porch.id })
   }
-  
-  const updateRoomName = (roomId: string, newName: string) => {
-    setRooms(rooms.map(room => room.id === roomId ? { ...room, name: newName } : room))
+
+  const initItemDrag = (roomId: string, item: WallItem, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    if (!svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    dragInfo.current = {
+      type: 'item',
+      roomId,
+      itemId: item.id,
+      startX: (e.clientX - rect.left) / scale,
+      startY: (e.clientY - rect.top) / scale,
+      originalItemPos: { x: item.x, y: item.y }
+    }
   }
-  
-  const totalArea = rooms.reduce((sum, room) => sum + (room.width * room.height), 0)
-  const cabinArea = cabinWidth * cabinLength
-  const freeArea = cabinArea - totalArea
-  
-  // Enrutador global de movimientos tanto táctil como de mouse
-  const handleGlobalMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (resizing) handleMoveResize(e)
-    else if (isDragging) handleMoveDrag(e)
+
+  // --- MOTOR DE MOVIMIENTO EN TIEMPO REAL ---
+  const handleMouseMoveGlobal = (e: React.MouseEvent) => {
+    if (!dragInfo.current || !svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const curX = (e.clientX - rect.left) / scale
+    const curY = (e.clientY - rect.top) / scale
+    const curXSnap = Math.round(curX * 10) / 10
+    const curYSnap = Math.round(curY * 10) / 10
+
+    const info = dragInfo.current
+
+    if (info.type === 'vertex' && info.roomId && info.index !== undefined) {
+      setRooms(prev => prev.map(r => {
+        if (r.id !== info.roomId) return r
+        const nv = [...r.vertices]
+        nv[info.index!] = { x: curXSnap, y: curYSnap }
+        return { ...r, vertices: nv }
+      }))
+    } 
+    else if (info.type === 'porch-vertex' && info.porchId && info.index !== undefined) {
+      setPorches(prev => prev.map(p => {
+        if (p.id !== info.porchId) return p
+        const nv = [...p.vertices]
+        nv[info.index!] = { x: curXSnap, y: curYSnap }
+        return { ...p, vertices: nv }
+      }))
+    }
+    else if (info.type === 'room-center' && info.roomId && info.startX && info.startY && info.originalVertices) {
+      const dx = curX - info.startX
+      const dy = curY - info.startY
+      setRooms(prev => prev.map(r => {
+        if (r.id !== info.roomId) return r
+        return {
+          ...r,
+          vertices: info.originalVertices!.map(v => ({
+            x: Math.round((v.x + dx) * 10) / 10,
+            y: Math.round((v.y + dy) * 10) / 10
+          }))
+        }
+      }))
+    }
+    else if (info.type === 'porch-center' && info.porchId && info.startX && info.startY && info.originalVertices) {
+      const dx = curX - info.startX
+      const dy = curY - info.startY
+      setPorches(prev => prev.map(p => {
+        if (p.id !== info.porchId) return p
+        return {
+          ...p,
+          vertices: info.originalVertices!.map(v => ({
+            x: Math.round((v.x + dx) * 10) / 10,
+            y: Math.round((v.y + dy) * 10) / 10
+          }))
+        }
+      }))
+    }
+    else if (info.type === 'item' && info.roomId && info.itemId && info.startX && info.startY && info.originalItemPos) {
+      const dx = curX - info.startX
+      const dy = curY - info.startY
+      setRooms(prev => prev.map(r => {
+        if (r.id !== info.roomId) return r
+        return {
+          ...r,
+          items: r.items.map(it => it.id === info.itemId ? {
+            ...it,
+            x: Math.round((info.originalItemPos!.x + dx) * 10) / 10,
+            y: Math.round((info.originalItemPos!.y + dy) * 10) / 10
+          } : it)
+        }
+      }))
+    }
   }
+
+  const handleMouseUpGlobal = () => {
+    dragInfo.current = null
+  }
+
+  // --- CONTROLES DE AGREGAR MÁS PORCHES ---
+  const addNewPorchZone = () => {
+    const id = `p-${Date.now()}`
+    setPorches([...porches, {
+      id,
+      name: `Porche Adicional ${porches.length + 1}`,
+      style: 'alero',
+      vertices: [{ x: 2, y: 2 }, { x: 5, y: 2 }, { x: 5, y: 3.5 }, { x: 2, y: 3.5 }]
+    }])
+    setActiveElement({ type: 'porch', id })
+  }
+
+  // Cálculo de los límites globales para el techo dinámico unificado
+  const boundingBox3D = useMemo(() => {
+    let minX = 999, maxX = -999, minY = 999, maxY = -999
+    rooms.forEach(r => {
+      r.vertices.forEach(v => {
+        if (v.x < minX) minX = v.x
+        if (v.x > maxX) maxX = v.x
+        if (v.y < minY) minY = v.y
+        if (v.y > maxY) maxY = v.y
+      })
+    })
+    return { minX, maxX, minY, maxY, width: maxX - minX, length: maxY - minY }
+  }, [rooms])
 
   return (
-    <div className="space-y-6 select-none">
-      {/* Selector de Vistas / Pestañas */}
-      <div className="flex border-b border-gray-200 justify-between items-center">
-        <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
-          <button
-            onClick={() => setActiveTab('2d')}
-            className={`flex-1 sm:flex-none py-2.5 px-3 text-center font-semibold text-xs sm:text-sm border-b-2 transition ${
-              activeTab === '2d' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500'
-            }`}
-          >
-            📐 Plano 2D (Editar)
+    <div className="flex flex-col lg:flex-row gap-6 p-6 bg-slate-900 text-white rounded-3xl shadow-2xl select-none">
+      
+      {/* PANEL DE CONTROL MULTI-PORCHE Y ACABADOS */}
+      <div className="w-full lg:w-80 flex flex-col gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800 shrink-0">
+        <div>
+          <span className="text-[10px] bg-yellow-500/20 text-yellow-500 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Cabañas de Madera Premium</span>
+          <h3 className="text-base font-black tracking-tight mt-1">Configurador Libre</h3>
+          <p className="text-xs text-slate-400 mt-1">🚀 <b>¡Todo solucionado!</b> Podés arrastrar los ambientes desde su centro, mover aberturas y diseñar múltiples porches alrededor.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <button onClick={() => setActiveTab('2d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '2d' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}>
+            📐 Plano Plano 2D
           </button>
-          <button
-            onClick={() => setActiveTab('3d')}
-            className={`flex-1 sm:flex-none py-2.5 px-3 text-center font-semibold text-xs sm:text-sm border-b-2 transition flex items-center justify-center gap-1.5 ${
-              activeTab === '3d' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
-            }`}
-          >
-            🏠 Vista 3D ✨
+          <button onClick={() => setActiveTab('3d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '3d' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>
+            🌲 Cabaña 3D Real ✨
           </button>
         </div>
-      </div>
 
-      {activeTab === '2d' ? (
-        <>
-          {/* Toolbar de habitaciones */}
-          <div className="bg-gray-50 p-3 sm:p-4 rounded-xl shadow-sm">
-            <h4 className="font-semibold text-gray-700 mb-2.5 text-xs sm:text-sm flex items-center gap-1">➕ Añadir ambientes:</h4>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {roomTypes.map((type) => (
-                <button
-                  key={type.name}
-                  onClick={() => addRoom(type)}
-                  className="flex items-center gap-1.5 px-2.5 py-2 bg-white border border-gray-200 rounded-lg active:bg-green-50 active:border-green-600 sm:hover:border-green-600 sm:hover:bg-green-50 transition shadow-sm text-gray-700"
-                >
-                  <span className="text-sm">{type.icon}</span>
-                  <span className="text-xs font-medium">{type.name}</span>
-                </button>
-              ))}
+        <hr className="border-slate-800" />
+
+        {/* PROPIEDADES DINÁMICAS DEL PORCHE SELECCIONADO */}
+        {activeElement.type === 'porch' ? (
+          <div className="p-3 bg-amber-950/40 rounded-xl border border-amber-900/50 space-y-3">
+            <h4 className="text-xs font-bold text-amber-400 flex items-center justify-between">
+              <span>🛠️ Configurar Porche Activo</span>
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button 
+                onClick={() => setPorches(prev => prev.map(p => p.id === activeElement.id ? { ...p, style: 'alero' } : p))}
+                className={`p-2 text-[11px] font-bold rounded-lg border transition ${porches.find(p => p.id === activeElement.id)?.style === 'alero' ? 'bg-amber-600 border-amber-500' : 'bg-slate-900 border-slate-800'}`}
+              >
+                💧 Solo Alero
+              </button>
+              <button 
+                onClick={() => setPorches(prev => prev.map(p => p.id === activeElement.id ? { ...p, style: 'pilotes' } : p))}
+                className={`p-2 text-[11px] font-bold rounded-lg border transition ${porches.find(p => p.id === activeElement.id)?.style === 'pilotes' ? 'bg-amber-600 border-amber-500' : 'bg-slate-900 border-slate-800'}`}
+              >
+                🪵 Deck c/ Pilotes
+              </button>
             </div>
           </div>
-          
-          {/* Plano interactivo SVG listo para Touch (celulares) */}
+        ) : (
+          <p className="text-[11px] text-slate-500 text-center italic bg-slate-900/50 p-2 rounded-lg">Seleccioná o arrastrá un porche para cambiar su estilo constructivo.</p>
+        )}
+
+        <button 
+          onClick={addNewPorchZone}
+          className="w-full py-2.5 bg-slate-900 border border-slate-800 hover:border-amber-500 text-xs font-bold rounded-xl transition text-center"
+        >
+          ➕ Agregar Otra Zona de Porche
+        </button>
+
+        <hr className="border-slate-800" />
+        <div className="text-[11px] bg-slate-900 p-3 rounded-xl border border-slate-800 text-slate-400 space-y-1.5">
+          <p className="font-bold text-slate-200">💡 Tip de diseño:</p>
+          <p>• Clic izquierdo y arrastrá el interior de un ambiente o porche para reposicionarlo entero.</p>
+          <p>• Hacé clic derecho sobre cualquier línea perimetral para añadirle un vértice extra.</p>
+        </div>
+      </div>
+
+      {/* ÁREA DE RENDERIZADO Y PLANO */}
+      <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden relative min-h-[540px]">
+        {activeTab === '2d' ? (
           <div 
-            className="relative overflow-auto border-2 border-gray-200 rounded-xl bg-slate-50 p-2 sm:p-4 flex justify-center shadow-inner touch-none"
-            onMouseMove={handleGlobalMove}
-            onMouseUp={handleEndInteraction}
-            onMouseLeave={handleEndInteraction}
-            onTouchMove={handleGlobalMove}
-            onTouchEnd={handleEndInteraction}
+            className="w-full h-full p-6 flex justify-center items-center relative overflow-auto bg-[radial-gradient(#2a251f_1.5px,transparent_1.5px)] [background-size:20px_20px]"
+            onMouseMove={handleMouseMoveGlobal}
+            onMouseUp={handleMouseUpGlobal}
+            onMouseLeave={handleMouseUpGlobal}
           >
-            <svg 
-              width={svgWidth} 
-              height={svgHeight} 
-              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              className="bg-white rounded-lg shadow-md border border-gray-100"
-            >
-              <defs>
-                <pattern id="grid" width={scale / 2} height={scale / 2} patternUnits="userSpaceOnUse">
-                  <path d={`M ${scale / 2} 0 L 0 0 0 ${scale / 2}`} fill="none" stroke="#f1f5f9" strokeWidth="1" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-
-              {/* Contorno perimetral */}
-              <rect
-                x={20}
-                y={20}
-                width={cabinWidth * scale}
-                height={cabinLength * scale}
-                fill="transparent"
-                stroke="#0f766e"
-                strokeWidth="4"
-                rx="6"
-              />
+            <svg ref={svgRef} width="640" height="480" className="bg-slate-900/90 rounded-xl border border-slate-800 shadow-2xl overflow-visible">
               
-              <text x={20 + (cabinWidth * scale) / 2} y={15} textAnchor="middle" fontSize="11" fill="#0f766e" className="font-bold">
-                {cabinWidth}m de ancho
-              </text>
-              <text x={svgWidth - 12} y={20 + (cabinLength * scale) / 2} textAnchor="middle" fontSize="11" fill="#0f766e" className="font-bold" transform={`rotate(90, ${svgWidth - 12}, ${20 + (cabinLength * scale) / 2})`}>
-                {cabinLength}m de largo
-              </text>
-              
-              {/* Habitaciones */}
-              {rooms.map((room) => (
-                <g key={room.id}>
-                  <rect
-                    x={20 + room.x * scale}
-                    y={20 + room.y * scale}
-                    width={room.width * scale}
-                    height={room.height * scale}
-                    fill={room.color}
-                    fillOpacity="0.85"
-                    stroke="#1e293b"
-                    strokeWidth="2.5"
-                    rx="4"
-                    className={`cursor-move transition-all ${selectedRoom === room.id ? 'stroke-blue-600 stroke-2' : ''}`}
-                    onMouseDown={(e) => handleStartDrag(room.id, e)}
-                    onTouchStart={(e) => handleStartDrag(room.id, e)}
-                  />
-                  
-                  {/* Manillas de tamaño agrandadas a r="10" para que quepa la yema del dedo */}
-                  {/* Derecha (Ancho) */}
-                  <circle
-                    cx={20 + (room.x + room.width) * scale}
-                    cy={20 + room.y * scale}
-                    r="10"
-                    className="fill-amber-500 stroke-white stroke-2 cursor-ew-resize opacity-90"
-                    onMouseDown={(e) => handleStartResize(room.id, 'e', e)}
-                    onTouchStart={(e) => handleStartResize(room.id, 'e', e)}
-                  />
-                  {/* Esquina Inferior Derecha (Ambos ejes) */}
-                  <circle
-                    cx={20 + (room.x + room.width) * scale}
-                    cy={20 + (room.y + room.height) * scale}
-                    r="12"
-                    className="fill-amber-600 stroke-white stroke-2 cursor-se-resize opacity-90"
-                    onMouseDown={(e) => handleStartResize(room.id, 'es', e)}
-                    onTouchStart={(e) => handleStartResize(room.id, 'es', e)}
-                  />
-                  {/* Abajo (Alto) */}
-                  <circle
-                    cx={20 + room.x * scale}
-                    cy={20 + (room.y + room.height) * scale}
-                    r="10"
-                    className="fill-amber-500 stroke-white stroke-2 cursor-ns-resize opacity-90"
-                    onMouseDown={(e) => handleStartResize(room.id, 's', e)}
-                    onTouchStart={(e) => handleStartResize(room.id, 's', e)}
-                  />
-                  
-                  <text
-                    x={20 + room.x * scale + (room.width * scale) / 2}
-                    y={20 + room.y * scale + (room.height * scale) / 2 - 4}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="11"
-                    className="fill-slate-800 font-bold select-none pointer-events-none"
-                  >
-                    {room.name}
-                  </text>
-                  <text
-                    x={20 + room.x * scale + (room.width * scale) / 2}
-                    y={20 + room.y * scale + (room.height * scale) / 2 + 12}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="9"
-                    className="fill-slate-600 font-semibold select-none pointer-events-none"
-                  >
-                    {room.width.toFixed(1)}x{room.height.toFixed(1)}m
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </div>
-        </>
-      ) : (
-        /* VISTA 3D EN MOBILE CON CONTROL TÁCTIL AUTOMÁTICO */
-        <div className="w-full h-[380px] sm:h-[500px] bg-slate-900 rounded-xl overflow-hidden relative shadow-lg border border-slate-800">
-          <div className="absolute top-3 left-3 z-10 bg-slate-800/95 text-white text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg backdrop-blur-sm pointer-events-none shadow">
-            📱 <strong>Un dedo:</strong> Rotar | ✌️ <strong>Pellizcar:</strong> Zoom
-          </div>
-          
-          <Canvas camera={{ position: [7, 9, 11], fov: 45 }}>
-            <color attach="background" args={['#0f172a']} />
-            <ambientLight intensity={0.7} />
-            <directionalLight position={[10, 15, 5]} intensity={1.2} />
+              {/* RENDERIZADO DE PORCHES COMPLETAMENTE EDITABLES */}
+              {porches.map(porch => {
+                const pointsStr = porch.vertices.map(v => `${v.x * scale},${v.y * scale}`).join(' ')
+                const isSelected = activeElement.type === 'porch' && activeElement.id === porch.id
 
-            <Center>
-              <mesh position={[0, -0.05, 0]}>
-                <boxGeometry args={[cabinWidth, 0.1, cabinLength]} />
-                <meshStandardMaterial color="#334155" roughness={0.6} />
-              </mesh>
-
-              {rooms.map((room) => {
-                const posX = room.x + room.width / 2 - cabinWidth / 2
-                const posZ = room.y + room.height / 2 - cabinLength / 2
-                const height3D = 2.2
-                
                 return (
-                  <group key={room.id} position={[posX, 0, posZ]}>
-                    <mesh position={[0, 0.01, 0]}>
-                      <boxGeometry args={[room.width - 0.03, 0.02, room.height - 0.03]} />
-                      <meshStandardMaterial color={room.color} roughness={0.4} />
-                    </mesh>
+                  <g key={porch.id}>
+                    {/* Polígono base del porche */}
+                    <polygon 
+                      points={pointsStr}
+                      fill={porch.style === 'pilotes' ? '#d97706' : '#0284c7'}
+                      fillOpacity={isSelected ? "0.3" : "0.18"}
+                      stroke={porch.style === 'pilotes' ? '#b45309' : '#0369a1'}
+                      strokeWidth="3"
+                      strokeDasharray="4,4"
+                      className="cursor-move"
+                      onMouseDown={(e) => initPorchCenterDrag(porch, e)}
+                    />
 
-                    <mesh position={[0, height3D / 2, 0]}>
-                      <boxGeometry args={[room.width, height3D, room.height]} />
-                      <meshStandardMaterial color={room.color} wireframe transparent opacity={0.35} />
-                    </mesh>
-
-                    <mesh position={[0, 0.1, 0]}>
-                      <boxGeometry args={[room.width, 0.2, room.height]} />
-                      <meshStandardMaterial color="#1e293b" opacity={0.8} transparent />
-                    </mesh>
-                  </group>
+                    {/* Manejo de vértices del porche */}
+                    {porch.vertices.map((v, idx) => {
+                      const nextV = porch.vertices[(idx + 1) % porch.vertices.length]
+                      return (
+                        <g key={`pv-g-${idx}`}>
+                          <line x1={v.x * scale} y1={v.y * scale} x2={nextV.x * scale} y2={nextV.y * scale} stroke="transparent" strokeWidth="10" className="cursor-crosshair" onContextMenu={(e) => handleRightClickPorch(porch.id, idx, e)} />
+                          <circle cx={v.x * scale} cy={v.y * scale} r="7" className="fill-amber-600 stroke-slate-950 stroke-2 cursor-move hover:fill-white" onMouseDown={(e) => initPorchVertexDrag(porch.id, idx, e)} />
+                        </g>
+                      )
+                    })}
+                  </g>
                 )
               })}
-            </Center>
 
-            <Grid position={[0, -0.06, 0]} args={[20, 20]} cellColor="#334155" sectionColor="#475569" fadeDistance={20} />
-            <OrbitControls enableDamping dampingFactor={0.07} maxPolarAngle={Math.PI / 2.2} minDistance={4} maxDistance={20} />
-          </Canvas>
-        </div>
-      )}
-      
-      {/* Editor de Nombres de Ambientes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-        {rooms.map((room) => (
-          <div key={room.id} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded-xl shadow-sm">
-            <div className="w-4 h-4 rounded border border-gray-200 shrink-0" style={{ backgroundColor: room.color }}></div>
-            <input
-              type="text"
-              value={room.name}
-              onChange={(e) => updateRoomName(room.id, e.target.value)}
-              className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded-lg text-xs bg-gray-50 text-gray-700 font-medium focus:bg-white"
-            />
-            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
-              {room.width.toFixed(1)}x{room.height.toFixed(1)}m
-            </span>
-            <button onClick={() => removeRoom(room.id)} className="text-gray-400 active:text-red-500 sm:hover:text-red-500 p-1 shrink-0">
-              🗑️
-            </button>
+              {/* RENDERIZADO DE AMBIENTES INTERNOS */}
+              {rooms.map((room) => {
+                const style = roomStyles[room.type] || roomStyles['Living']
+                const pointsStr = room.vertices.map(v => `${v.x * scale},${v.y * scale}`).join(' ')
+                const isSelected = activeElement.type === 'room' && activeElement.id === room.id
+
+                return (
+                  <g key={room.id}>
+                    {/* Área central para arrastrar la habitación entera */}
+                    <polygon 
+                      points={pointsStr}
+                      fill={style.bg}
+                      fillOpacity={isSelected ? "0.9" : "0.75"}
+                      stroke="#451a03"
+                      strokeWidth="6"
+                      className="cursor-move"
+                      onMouseDown={(e) => initRoomCenterDrag(room, e)}
+                    />
+
+                    {/* Medidas de los tramos de pared */}
+                    {room.vertices.map((v, idx) => {
+                      const nextV = room.vertices[(idx + 1) % room.vertices.length]
+                      const midX = ((v.x + nextV.x) / 2) * scale
+                      const midY = ((v.y + nextV.y) / 2) * scale
+                      const dist = Math.sqrt(Math.pow(nextV.x - v.x, 2) + Math.pow(nextV.y - v.y, 2))
+
+                      return (
+                        <g key={`w-info-${idx}`}>
+                          {/* Línea invisible receptora de Clic Derecho */}
+                          <line x1={v.x * scale} y1={v.y * scale} x2={nextV.x * scale} y2={nextV.y * scale} stroke="transparent" strokeWidth="12" className="cursor-crosshair" onContextMenu={(e) => handleRightClickWall(room.id, idx, e)} />
+                          <g className="pointer-events-none">
+                            <rect x={midX - 14} y={midY - 7} width="28" height="14" fill="#451a03" rx="3" />
+                            <text x={midX} y={midY + 3} textAnchor="middle" fontSize="9" className="fill-amber-300 font-mono font-bold">{dist.toFixed(1)}m</text>
+                          </g>
+                        </g>
+                      )
+                    })}
+
+                    {/* Título de habitación */}
+                    {room.vertices[0] && (
+                      <text x={room.vertices[0].x * scale + 15} y={room.vertices[0].y * scale + 25} fontSize="11" className="fill-stone-800 font-black pointer-events-none">{style.icon} {room.name}</text>
+                    )}
+
+                    {/* Aberturas de arrastre libre absoluto */}
+                    {room.items.map(item => (
+                      <g key={item.id} transform={`translate(${item.x * scale}, ${item.y * scale})`} className="cursor-move" onMouseDown={(e) => initItemDrag(room.id, item, e)}>
+                        {item.type === 'puerta' ? (
+                          <g>
+                            <circle r="6" fill="#d84315" />
+                            <line x1="0" y1="0" x2="16" y2="0" stroke="#d84315" strokeWidth="3" />
+                            <path d="M 0,0 A 16,16 0 0,1 16,-16" fill="none" stroke="#d84315" strokeDasharray="2,2" />
+                          </g>
+                        ) : (
+                          <g>
+                            <rect x="-12" y="-4" width="24" height="8" fill="#0284c7" stroke="#fff" rx="2" />
+                          </g>
+                        )}
+                      </g>
+                    ))}
+
+                    {/* Vértices del contorno estructural */}
+                    {room.vertices.map((v, idx) => (
+                      <circle key={`v-dot-${idx}`} cx={v.x * scale} cy={v.y * scale} r="8" className="fill-amber-500 stroke-amber-950 stroke-2 cursor-move hover:fill-white" onMouseDown={(e) => initVertexDrag(room.id, idx, e)} />
+                    ))}
+                  </g>
+                )
+              })}
+
+            </svg>
           </div>
-        ))}
-      </div>
-      
-      {/* Caja de Estadísticas */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-4 rounded-xl">
-        <h4 className="font-bold text-teal-900 mb-2.5 text-xs sm:text-sm">📐 Resumen de Superficie</h4>
-        <div className="grid grid-cols-2 gap-2 text-[11px]">
-          <div className="bg-white p-2 rounded-lg border border-teal-50">
-            <span className="text-gray-500 block">Total Cabaña:</span>
-            <span className="font-bold text-teal-900">{cabinArea.toFixed(1)} m²</span>
-          </div>
-          <div className="bg-white p-2 rounded-lg border border-teal-50">
-            <span className="text-gray-500 block">Área Disponible:</span>
-            <span className={`font-bold ${freeArea < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{freeArea.toFixed(1)} m²</span>
-          </div>
-        </div>
-        {freeArea < 0 && (
-          <div className="p-2 bg-red-50 border border-red-100 rounded-lg text-red-700 text-[10px] mt-2 font-medium">
-            ⚠️ Los ambientes exceden el tamaño real de la cabaña.
+        ) : (
+          /* VISTA 3D MEJORADA: CABAÑA DE TRONCOS, PORCHES MODULARES Y TECHO ACOPLADO */
+          <div className="w-full h-[540px]">
+            <Canvas camera={{ position: [boundingBox3D.minX + boundingBox3D.width/2, 10, boundingBox3D.maxY + 10], fov: 45 }} shadows>
+              <color attach="background" args={['#0c0f17']} />
+              <ambientLight intensity={0.7} />
+              <directionalLight position={[20, 25, 15]} intensity={1.3} castShadow shadow-mapSize={[2048, 2048]} />
+              
+              {/* Plano de la Cabaña */}
+              <group position={[0, 0, 0]}>
+                
+                {/* 1. MUROS DE MADERA RÚSTICA (Siguen fielmente los polígonos del plano) */}
+                {rooms.map((room) => {
+                  const shape = new THREE.Shape()
+                  if (room.vertices.length === 0) return null
+                  shape.moveTo(room.vertices[0].x, room.vertices[0].y)
+                  for (let i = 1; i < room.vertices.length; i++) {
+                    shape.lineTo(room.vertices[i].x, room.vertices[i].y)
+                  }
+                  shape.closePath()
+
+                  return (
+                    <group key={`3d-room-${room.id}`}>
+                      <mesh castShadow receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+                        <extrudeGeometry args={[shape, { depth: 2.4, bevelEnabled: false }]} />
+                        {/* Tono marrón leño acanalado */}
+                        <meshStandardMaterial color="#5c2e0b" roughness={0.75} side={THREE.DoubleSide} />
+                      </mesh>
+
+                      {/* Aberturas integradas en sus coordenadas exactas */}
+                      {room.items.map(item => (
+                        <mesh key={`3d-item-${item.id}`} position={[item.x, 1.1, item.y]} castShadow>
+                          <boxGeometry args={[item.type === 'puerta' ? 0.85 : 1.3, item.type === 'puerta' ? 2.0 : 1.1, 0.3]} />
+                          <meshStandardMaterial color={item.type === 'puerta' ? '#7c2d12' : '#93c5fd'} metalness={item.type === 'puerta' ? 0.1 : 0.6} roughness={0.2} />
+                        </mesh>
+                      ))}
+                    </group>
+                  )
+                })}
+
+                {/* 2. TECHO DINÁMICO A DOS AGUAS: Se adapta a los límites reales de la casa */}
+                <group position={[0, 2.4, 0]}>
+                  {/* Ala Izquierda del Techo de Chapa */}
+                  <mesh 
+                    position={[boundingBox3D.minX + boundingBox3D.width / 4, boundingBox3D.length * 0.15, boundingBox3D.minY + boundingBox3D.length / 2]} 
+                    rotation={[0, 0, 0.4]} 
+                    castShadow
+                  >
+                    <boxGeometry args={[boundingBox3D.width / 1.6, 0.08, boundingBox3D.length + 0.6]} />
+                    <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.25} title="Chapa Acanalada" />
+                  </mesh>
+
+                  {/* Ala Derecha del Techo de Chapa */}
+                  <mesh 
+                    position={[boundingBox3D.maxX - boundingBox3D.width / 4, boundingBox3D.length * 0.15, boundingBox3D.minY + boundingBox3D.length / 2]} 
+                    rotation={[0, 0, -0.4]} 
+                    castShadow
+                  >
+                    <boxGeometry args={[boundingBox3D.width / 1.6, 0.08, boundingBox3D.length + 0.6]} />
+                    <meshStandardMaterial color="#334155" metalness={0.85} roughness={0.25} />
+                  </mesh>
+                </group>
+
+                {/* 3. PORCHES PERMANENTES Y EDITABLES ALREDEDOR DE LA CASA */}
+                {porches.map(porch => {
+                  const shape = new THREE.Shape()
+                  if (porch.vertices.length === 0) return null
+                  shape.moveTo(porch.vertices[0].x, porch.vertices[0].y)
+                  for (let i = 1; i < porch.vertices.length; i++) {
+                    shape.lineTo(porch.vertices[i].x, porch.vertices[i].y)
+                  }
+                  shape.closePath()
+
+                  // Busquemos el centro y dimensiones aproximadas del porche para los pilotes
+                  let pMinX = 999, pMaxX = -999, pMinY = 999, pMaxY = -999
+                  porch.vertices.forEach(v => {
+                    if (v.x < pMinX) pMinX = v.x; if (v.x > pMaxX) pMaxX = v.x
+                    if (v.y < pMinY) pMinY = v.y; if (v.y > pMaxY) pMaxY = v.y
+                  })
+
+                  return (
+                    <group key={`3d-porch-${porch.id}`}>
+                      {/* Si el cliente eligió 'pilotes', se renderiza el piso/deck de madera sobreelevado */}
+                      {porch.style === 'pilotes' && (
+                        <>
+                          {/* Deck de Madera */}
+                          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.1, 0]} receiveShadow>
+                            <extrudeGeometry args={[shape, { depth: 0.1, bevelEnabled: false }]} />
+                            <meshStandardMaterial color="#a16207" roughness={0.6} />
+                          </mesh>
+                          {/* Pilotes de madera de soporte (esquinas básicas) */}
+                          <mesh position={[pMinX + 0.2, 0.05, pMinY + 0.2]} castShadow><cylinderGeometry args={[0.08, 0.08, 0.2]} /><meshStandardMaterial color="#451a03" /></mesh>
+                          <mesh position={[pMaxX - 0.2, 0.05, pMinY + 0.2]} castShadow><cylinderGeometry args={[0.08, 0.08, 0.2]} /><meshStandardMaterial color="#451a03" /></mesh>
+                          <mesh position={[pMinX + 0.2, 0.05, pMaxY - 0.2]} castShadow><cylinderGeometry args={[0.08, 0.08, 0.2]} /><meshStandardMaterial color="#451a03" /></mesh>
+                          <mesh position={[pMaxX - 0.2, 0.05, pMaxY - 0.2]} castShadow><cylinderGeometry args={[0.08, 0.08, 0.2]} /><meshStandardMaterial color="#451a03" /></mesh>
+
+                          {/* Columnas altas que sostienen el techo de la galería */}
+                          <mesh position={[pMinX + 0.2, 1.2, pMaxY - 0.2]} castShadow><cylinderGeometry args={[0.06, 0.06, 2.2]} /><meshStandardMaterial color="#451a03" /></mesh>
+                          <mesh position={[pMaxX - 0.2, 1.2, pMaxY - 0.2]} castShadow><cylinderGeometry args={[0.06, 0.06, 2.2]} /><meshStandardMaterial color="#451a03" /></mesh>
+                        </>
+                      )}
+
+                      {/* Alero Superior (Presente en ambos estilos: alero simple y deck con pilotes) */}
+                      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 2.35, 0]} castShadow>
+                        <extrudeGeometry args={[shape, { depth: 0.06, bevelEnabled: false }]} />
+                        <meshStandardMaterial color="#475569" metalness={0.5} roughness={0.5} />
+                      </mesh>
+                    </group>
+                  )
+                })}
+
+              </group>
+
+              <Grid position={[0, -0.01, 0]} args={[40, 40]} cellColor="#1e293b" sectionColor="#475569" fadeDistance={25} />
+              <OrbitControls enableDamping dampingFactor={0.05} />
+            </Canvas>
           </div>
         )}
       </div>
