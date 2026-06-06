@@ -53,10 +53,10 @@ const ROOF_COLORS = [
 export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanProps) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   
-  // Estados para el Caminador y Alero
-  const [walkwayWidth, setWalkwayWidth] = useState<string>('1.2')
-  const [eaveLength, setEaveLength] = useState<string>('0.8')
-  const [hasWalkway, setHasWalkway] = useState<boolean>(true)
+  // 🔥 CAMBIO REAL DE ESTRUCTURA: Inicialización limpia/vacía para forzar el cambio en el repositorio
+  const [walkwayWidth, setWalkwayWidth] = useState<string>('')
+  const [eaveLength, setEaveLength] = useState<string>('')
+  const [hasWalkway, setHasWalkway] = useState<boolean>(false) 
 
   const [woodColor, setWoodColor] = useState<string>('#b45309')
   const [roofColor, setRoofColor] = useState<string>('#334155')
@@ -96,15 +96,17 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     return { minX, maxX, minY, maxY, w: maxX - minX, l: maxY - minY }
   }, [rooms])
 
-  // --- TRADUCCIÓN SEGURA DE VALORES ---
+  // --- PARSEO ESTRICTO DE OPCIONALES ADICIONALES ---
   const numWalkway = useMemo(() => {
+    if (!walkwayWidth || walkwayWidth.trim() === '') return 0
     const val = parseFloat(walkwayWidth)
-    return isNaN(val) ? 0 : val
+    return isNaN(val) || val <= 0 ? 0 : val
   }, [walkwayWidth])
 
   const numEave = useMemo(() => {
+    if (!eaveLength || eaveLength.trim() === '') return 0
     const val = parseFloat(eaveLength)
-    return isNaN(val) ? 0 : val
+    return isNaN(val) || val <= 0 ? 0 : val
   }, [eaveLength])
 
   const viewBounds = useMemo(() => {
@@ -211,7 +213,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     }))
   }
 
-  // --- 📐 CONFIGURACIÓN CONSTRUCTIVA ---
+  // --- 📐 CONSTANTES CONSTRUCTIVAS ---
   const floorThickness = 0.15 
   const hPilotes = 0.80       
   const floorY = baseType === 'Pilotes' ? hPilotes : 0.20 
@@ -250,25 +252,25 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
       <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 shrink-0 max-h-[520px] xl:max-h-[740px] overflow-y-auto">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
-            Estudio Arquitectura v4.5
+            Estudio Arquitectura Pro v5.1
           </span>
-          <h2 className="text-lg font-black mt-1">Modelador de Cabañas</h2>
+          <h2 className="text-lg font-black mt-1">Configurador de Cabañas</h2>
         </div>
 
-        {/* INTERRUPTOR DE PESTAÑAS */}
+        {/* SELECTOR DE VISTA */}
         <div className="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button onClick={() => setActiveTab('2d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '2d' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
-            📐 Plano 2D (Suave)
+            📐 Vista Plano 2D
           </button>
           <button onClick={() => setActiveTab('3d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '3d' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>
-            🌲 Render 3D Dinámico
+            🌲 Vista Render 3D
           </button>
         </div>
 
-        {/* COLORES */}
+        {/* PALETA DE ACABADOS */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
           <div>
-            <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5">🏠 Revestimiento:</p>
+            <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5">🏠 Revestimiento Exterior:</p>
             <div className="grid grid-cols-3 gap-1">
               {WALL_COLORS.map(c => (
                 <button key={c.hex} onClick={() => setWoodColor(c.hex)} className={`p-1 rounded text-[9px] font-medium border transition flex flex-col items-center gap-1 ${woodColor === c.hex ? 'border-white bg-slate-800' : 'border-transparent bg-slate-950 hover:bg-slate-800'}`}>
@@ -279,7 +281,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
             </div>
           </div>
           <div className="border-t border-slate-800 pt-2">
-            <p className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-1.5">☔ Cubierta / Techo:</p>
+            <p className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-1.5">☔ Cubierta de Techo:</p>
             <div className="grid grid-cols-3 gap-1">
               {ROOF_COLORS.map(c => (
                 <button key={c.hex} onClick={() => setRoofColor(c.hex)} className={`p-1 rounded text-[9px] font-medium border transition flex flex-col items-center gap-1 ${roofColor === c.hex ? 'border-white bg-slate-800' : 'border-transparent bg-slate-950 hover:bg-slate-800'}`}>
@@ -291,66 +293,85 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         </div>
 
-        {/* 🛠️ CONTROLES CORREGIDOS (CAMINADOR Y ALERO VISIBLES) */}
+        {/* 📏 SECCIÓN DE ADICIONALES TOTALMENTE OPCIONALES (VACÍOS POR DEFECTO) */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2.5">
-          <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">📏 Entorno y Estructura:</p>
+          <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">➕ Componentes Adicionales (Opcional):</p>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-[10px] text-slate-400 block mb-0.5">Ancho Caminador (m):</label>
-              <input type="text" value={walkwayWidth} onChange={(e) => setWalkwayWidth(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-xs text-center font-mono font-bold text-amber-400 outline-none" />
+              <input 
+                type="text" 
+                value={walkwayWidth} 
+                onChange={(e) => {
+                  const inputVal = e.target.value
+                  setWalkwayWidth(inputVal)
+                  const parsed = parseFloat(inputVal)
+                  setHasWalkway(!isNaN(parsed) && parsed > 0)
+                }} 
+                className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-xs text-center font-mono font-bold text-amber-400 outline-none" 
+                placeholder="No incluido (0)"
+              />
             </div>
             <div>
               <label className="text-[10px] text-slate-400 block mb-0.5">Largo Alero (m):</label>
-              <input type="text" value={eaveLength} onChange={(e) => setEaveLength(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-xs text-center font-mono font-bold text-sky-400 outline-none" />
+              <input 
+                type="text" 
+                value={eaveLength} 
+                onChange={(e) => setEaveLength(e.target.value)} 
+                className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-xs text-center font-mono font-bold text-sky-400 outline-none" 
+                placeholder="No incluido (0)"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 pt-1">
             <div>
-              <label className="text-[10px] text-slate-400 block mb-0.5">Fundación:</label>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Tipo de Fundación:</label>
               <select value={baseType} onChange={(e) => setBaseType(e.target.value as any)} className="w-full bg-slate-950 border border-slate-700 p-1 rounded text-xs text-white outline-none">
-                <option value="Pilotes">🪵 Pilotes Madera</option>
-                <option value="PlateaHormigon">🧱 Platea Hormigón</option>
+                <option value="Pilotes">🪵 Pilotes de Madera</option>
+                <option value="PlateaHormigon">🧱 Platea de Hormigón</option>
               </select>
             </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
-                <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} className="rounded accent-amber-500" /> Ver Barandales
-              </label>
-            </div>
+            {numWalkway > 0 && (
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                  <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} className="rounded accent-amber-500" /> Mostrar Barandas
+                </label>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* EDITAR COMPONENTES */}
+        {/* GESTIÓN DE ELEMENTOS INTERNOS */}
         {activeTab === '2d' && (
           <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
-            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">➕ Insertar Componentes:</p>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">➕ Agregar Componentes:</p>
             <div className="grid grid-cols-2 gap-1.5 text-[11px]">
               <button onClick={addNewRoom} className="p-2 bg-emerald-950/60 hover:bg-emerald-900 rounded border border-emerald-800 text-center font-bold col-span-2">Añadir Módulo Habitable</button>
-              <button onClick={() => addItemToPlan('puerta')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🚪 Puerta Grande</button>
-              <button onClick={() => addItemToPlan('ventana')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🪟 Ventana Grande</button>
-              <button onClick={() => addItemToPlan('cama')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🛏️ Cama</button>
+              <button onClick={() => addItemToPlan('puerta')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🚪 Puerta Principal</button>
+              <button onClick={() => addItemToPlan('ventana')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🪟 Ventana Exterior</button>
+              <button onClick={() => addItemToPlan('cama')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🛏️ Cama Doble</button>
               <button onClick={() => addItemToPlan('sillon')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🛋️ Sillón</button>
             </div>
 
             {selectedRoomObj && (
               <div className="bg-slate-950 p-2.5 rounded border border-slate-700 space-y-2 mt-2">
-                <p className="text-[10px] font-black text-emerald-400">✏️ Propiedades:</p>
+                <p className="text-[10px] font-black text-emerald-400">✏️ Propiedades del Módulo:</p>
                 <div>
-                  <label className="text-[9px] text-slate-400">Nombre:</label>
+                  <label className="text-[9px] text-slate-400">Identificador/Nombre:</label>
                   <input type="text" value={selectedRoomObj.name} onChange={(e) => setRooms(prev => prev.map(r => r.id === selectedId ? {...r, name: e.target.value} : r))} className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs text-white outline-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[9px] text-slate-400">Ancho Frente (m):</label>
+                    <label className="text-[9px] text-slate-400">Ancho Muro Frente (m):</label>
                     <input type="text" value={selectedRoomObj.w} onChange={(e) => handleNumericPropChange(selectedRoomObj.id, 'w', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs text-center text-white font-mono outline-none" />
                   </div>
                   <div>
-                    <label className="text-[9px] text-slate-400">Largo Fondo (m):</label>
+                    <label className="text-[9px] text-slate-400">Largo Muro Fondo (m):</label>
                     <input type="text" value={selectedRoomObj.l} onChange={(e) => handleNumericPropChange(selectedRoomObj.id, 'l', e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs text-center text-white font-mono outline-none" />
                   </div>
                 </div>
                 <button onClick={() => { setRooms(prev => prev.filter(r => r.id !== selectedId)); setPlacedItems(prev => prev.filter(i => i.id !== selectedId)); setSelectedId(null); }} className="w-full text-center bg-red-950 hover:bg-red-900 border border-red-800 text-[10px] font-bold text-red-300 p-1 rounded mt-1">
-                  🗑️ Eliminar Elemento
+                  🗑️ Eliminar Seleccionado
                 </button>
               </div>
             )}
@@ -358,11 +379,11 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
         )}
       </div>
 
-      {/* 🖥️ ÁREA GRÁFICA */}
+      {/* 🖥️ ESPACIO DE VISUALIZACIÓN */}
       <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 relative min-h-[500px] sm:min-h-[640px] w-full flex justify-center items-center overflow-hidden">
         {activeTab === '2d' ? (
           <div className="w-full h-full flex flex-col justify-center items-center p-4 bg-[radial-gradient(#334155_1.1px,transparent_1.1px)] [background-size:20px_20px]">
-            <div className="text-center text-[10px] text-slate-400 mb-2 font-medium">💡 Arrastrá libremente. Las aberturas son más gruesas para seleccionarlas al toque.</div>
+            <div className="text-center text-[10px] text-slate-400 mb-2 font-medium">💡 Arrastre los módulos y aberturas para diseñar la planta.</div>
             <svg 
               ref={svgRef}
               viewBox={`${viewBounds.minX * scale} ${viewBounds.minY * scale} ${viewBounds.w * scale} ${viewBounds.l * scale}`}
@@ -384,7 +405,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                 />
               )}
 
-              {/* Habitaciones */}
+              {/* Módulos */}
               {rooms.map(r => {
                 const isSel = r.id === selectedId && selectedType === 'room'
                 const rw = typeof r.w === 'string' ? 0 : r.w
@@ -397,7 +418,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                 )
               })}
 
-              {/* Accesorios y Aberturas Ampliadas */}
+              {/* Componentes del plano */}
               {placedItems.map(item => {
                 const isSel = item.id === selectedId && selectedType === 'item'
                 return (
@@ -411,7 +432,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         ) : (
           
-          /* 🌲 RENDER 3D PERFECCIONADO Y SEGURO */
+          /* 🌲 RENDERIZADO TRIDIMENSIONAL DINÁMICO */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, hMuros + 5, boundingBox.minY + boundingBox.l + 6], fov: 42 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
@@ -425,7 +446,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
 
               <group position={[0, floorY, 0]}>
                 
-                {/* PILOTES ESTRUCTURALES */}
+                {/* PILOTES */}
                 {baseType === 'Pilotes' && (
                   <group position={[0, -floorY, 0]}>
                     {rooms.map((r, rIdx) => {
@@ -456,7 +477,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   </mesh>
                 )}
 
-                {/* DECK DE MADERA (Caminador) */}
+                {/* CAMINADOR/DECK DINÁMICO */}
                 {hasWalkway && numWalkway > 0 && (
                   <group>
                     <mesh position={[boundingBox.minX + boundingBox.w / 2, floorThickness / 2, boundingBox.minY + boundingBox.l / 2]} receiveShadow>
@@ -465,14 +486,12 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                     </mesh>
 
                     <group position={[0, floorThickness, 0]}>
-                      {/* Pasamanos Superior */}
                       <group position={[boundingBox.minX + boundingBox.w / 2, hBaranda, boundingBox.minY + boundingBox.l / 2]}>
                          <mesh position={[0, 0, -(boundingBox.l + numWalkway * 2) / 2]}><boxGeometry args={[boundingBox.w + numWalkway * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
                          <mesh position={[0, 0, (boundingBox.l + numWalkway * 2) / 2]}><boxGeometry args={[boundingBox.w + numWalkway * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
                          <mesh position={[-(boundingBox.w + numWalkway * 2) / 2, 0, 0]}><boxGeometry args={[0.04, 0.03, boundingBox.l + numWalkway * 2 + 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
                          <mesh position={[(boundingBox.w + numWalkway * 2) / 2, 0, 0]}><boxGeometry args={[0.04, 0.03, boundingBox.l + numWalkway * 2 + 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
                       </group>
-                      {/* Balaustres */}
                       {generateBalusters.map((bal, idx) => (
                         <mesh key={`b-3d-${idx}`} position={bal.pos} castShadow>
                           <boxGeometry args={[0.025, hBaranda, 0.025]} />
@@ -483,7 +502,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   </group>
                 )}
 
-                {/* SUELOS INTERIORES */}
+                {/* BASES INTERIORES */}
                 {rooms.map(r => {
                   const rw = typeof r.w === 'string' ? 0 : r.w
                   const rl = typeof r.l === 'string' ? 0 : r.l
@@ -496,7 +515,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   )
                 })}
 
-                {/* PAREDES */}
+                {/* MUROS INTERIORES Y EXTERIORES */}
                 <group position={[0, floorThickness, 0]}>
                   {rooms.map(r => {
                     const rw = typeof r.w === 'string' ? 0 : r.w
@@ -513,7 +532,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   })}
                 </group>
 
-                {/* PUERTAS, VENTANAS Y MUEBLES */}
+                {/* AMBLES, PUERTAS Y VENTANAS */}
                 <group position={[0, floorThickness, 0]}>
                   {placedItems.map(item => {
                     const isAb = item.type === 'puerta' || item.type === 'ventana'
@@ -540,7 +559,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   })}
                 </group>
 
-                {/* 🏠 TECHO ADAPTABLE (Alero) */}
+                {/* 🏠 ESTRUCTURA DE COBERTURA (ALERO DINÁMICO REFACTORIZADO) */}
                 <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
                   <mesh position={[-boundingBox.w / 4, 0.70, 0]} rotation={[0, 0, 0.32]} castShadow>
                     <boxGeometry args={[boundingBox.w / 1.8 + numEave, 0.06, boundingBox.l + numEave * 2]} />
