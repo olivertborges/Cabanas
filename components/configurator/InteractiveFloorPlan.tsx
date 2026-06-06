@@ -410,133 +410,62 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                 <meshStandardMaterial color="#1a3d10" roughness={0.95} />
               </mesh>
 
-              <Center>
-                {/* 🪵 PILOTES DE APOYO AUTOMÁTICOS BAJO LOS MÓDULOS */}
-                {baseType === 'Pilotes' && (
-                  <group>
-                    {rooms.map((r, rIdx) => (
-                      <group key={`p-group-${r.id}-${rIdx}`}>
-                        {[0.1, r.w / 2, r.w - 0.1].map(xOffset =>
-                          [0.1, r.l / 2, r.l - 0.1].map((zOffset, idx) => (
-                            <mesh key={`p-room-${r.id}-${xOffset}-${zOffset}-${idx}`} position={[r.x + xOffset, hPilotes / 2, r.y + zOffset]} castShadow>
-                              <cylinderGeometry args={[0.11, 0.12, hPilotes]} />
-                              <meshStandardMaterial color="#221105" roughness={0.8} />
-                            </mesh>
-                          ))
-                        )}
+                          <Center>
+                {/* 🏠 ESTRUCTURA COMPLETA ELEVADA SOBRE EL SUELO */}
+                <group position={[0, floorY, 0]}>
+                  
+                  {/* PILOTES (Si es tipo Pilotes) */}
+                  {baseType === 'Pilotes' && (
+                    <group position={[0, -hPilotes/2, 0]}>
+                      {rooms.map((r, rIdx) => (
+                        <group key={`p-group-${r.id}-${rIdx}`}>
+                          {[0.1, r.w / 2, r.w - 0.1].map(xOffset =>
+                            [0.1, r.l / 2, r.l - 0.1].map((zOffset, idx) => (
+                              <mesh key={`p-room-${r.id}-${xOffset}-${zOffset}-${idx}`} position={[r.x + xOffset, hPilotes / 2, r.y + zOffset]} castShadow>
+                                <cylinderGeometry args={[0.11, 0.12, hPilotes]} />
+                                <meshStandardMaterial color="#221105" roughness={0.8} />
+                              </mesh>
+                            ))
+                          )}
+                        </group>
+                      ))}
+                    </group>
+                  )}
+
+                  {/* SUELO INTERIOR */}
+                  {rooms.map(r => (
+                    <mesh key={`floor-3d-${r.id}`} position={[r.x + r.w / 2, floorThickness / 2, r.y + r.l / 2]} receiveShadow>
+                      <boxGeometry args={[r.w - 0.02, floorThickness, r.l - 0.02]} />
+                      <meshStandardMaterial color="#5c2d0c" roughness={0.7} />
+                    </mesh>
+                  ))}
+
+                  {/* PAREDES */}
+                  <group position={[0, floorThickness, 0]}>
+                    {rooms.map(r => (
+                      <group key={`walls-3d-${r.id}`}>
+                        <mesh position={[r.x + r.w / 2, hMuros / 2, r.y]} castShadow><boxGeometry args={[r.w, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
+                        <mesh position={[r.x + r.w / 2, hMuros / 2, r.y + r.l]} castShadow><boxGeometry args={[r.w, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
+                        <mesh position={[r.x, hMuros / 2, r.y + r.l / 2]} castShadow><boxGeometry args={[0.12, hMuros, r.l]} /><meshStandardMaterial color={woodColor} /></mesh>
+                        <mesh position={[r.x + r.w, hMuros / 2, r.y + r.l / 2]} castShadow><boxGeometry args={[0.12, hMuros, r.l]} /><meshStandardMaterial color={woodColor} /></mesh>
                       </group>
                     ))}
                   </group>
-                )}
 
-                {/* PLATEA DE HORMIGÓN EN VOLUMEN COMPLETO (Si se selecciona) */}
-                {baseType === 'PlateaHormigon' && (
-                  <mesh position={[boundingBox.minX + boundingBox.w / 2, 0.10, boundingBox.minY + boundingBox.l / 2]} receiveShadow>
-                    <boxGeometry args={[boundingBox.w, 0.20, boundingBox.l]} />
-                    <meshStandardMaterial color="#4b5563" roughness={0.6} />
-                  </mesh>
-                )}
-
-                {/* 🚶 CAMINADOR COMPLETO PERIMETRAL EN "L" (Toma el mismo color que la cabaña) */}
-                {hasWalkway && (
-                  <group>
-                    <mesh position={[boundingBox.minX + boundingBox.w / 2, floorY - (floorThickness / 2), boundingBox.minY + boundingBox.l / 2]} receiveShadow>
-                      <boxGeometry args={[boundingBox.w + walkwayWidth * 2, floorThickness, boundingBox.l + walkwayWidth * 2]} />
-                      <meshStandardMaterial color={woodColor} roughness={0.85} />
+                  {/* TECHO ÚNICO */}
+                  <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
+                    <mesh position={[-boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, 0.28]} castShadow>
+                      <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
+                      <meshStandardMaterial color={roofColor} roughness={0.5} />
                     </mesh>
-
-                    {/* 🚧 CERQUITA DE MUCHOS PALITOS EN TORNO AL CAMINADOR */}
-                    <group position={[0, floorY, 0]}>
-                      {/* Pasamanos continuo */}
-                      <mesh position={[boundingBox.minX + boundingBox.w / 2, hBaranda, boundingBox.minY - walkwayWidth]}><boxGeometry args={[boundingBox.w + walkwayWidth * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
-                      <mesh position={[boundingBox.minX + boundingBox.w / 2, hBaranda, boundingBox.minY + boundingBox.l + walkwayWidth]}><boxGeometry args={[boundingBox.w + walkwayWidth * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
-                      
-                      {generateBalusters.map((bal, idx) => (
-                        <mesh key={`b-3d-${idx}`} position={bal.pos} castShadow>
-                          <boxGeometry args={[0.025, hBaranda, 0.025]} />
-                          <meshStandardMaterial color="#2d1606" roughness={0.9} />
-                        </mesh>
-                      ))}
-                    </group>
+                    <mesh position={[boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, -0.28]} castShadow>
+                      <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
+                      <meshStandardMaterial color={roofColor} roughness={0.5} />
+                    </mesh>
                   </group>
-                )}
-
-                {/* 🧱 SUELOS INTERIORES CORREGIDOS (Justo arriba de la base sin quedar enterrados) */}
-                {rooms.map(r => (
-                  <mesh key={`floor-3d-${r.id}`} position={[r.x + r.w / 2, floorY + (floorThickness / 2), r.y + r.l / 2]} receiveShadow>
-                    <boxGeometry args={[r.w - 0.02, floorThickness, r.l - 0.02]} />
-                    <meshStandardMaterial color="#5c2d0c" roughness={0.7} />
-                  </mesh>
-                ))}
-
-                {/* 🧱 PAREDES EXTRUIDAS EN BASE AL COMPLEMENTO DE ZONAS */}
-                <group position={[0, floorY + floorThickness, 0]}>
-                  {rooms.map(r => (
-                    <group key={`walls-3d-${r.id}`}>
-                      <mesh position={[r.x + r.w / 2, hMuros / 2, r.y]} castShadow><boxGeometry args={[r.w, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
-                      <mesh position={[r.x + r.w / 2, hMuros / 2, r.y + r.l]} castShadow><boxGeometry args={[r.w, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
-                      <mesh position={[r.x, hMuros / 2, r.y + r.l / 2]} castShadow><boxGeometry args={[0.12, hMuros, r.l]} /><meshStandardMaterial color={woodColor} /></mesh>
-                      <mesh position={[r.x + r.w, hMuros / 2, r.y + r.l / 2]} castShadow><boxGeometry args={[0.12, hMuros, r.l]} /><meshStandardMaterial color={woodColor} /></mesh>
-                    </group>
-                  ))}
                 </group>
-
-                {/* MOBILIARIO Y EQUIPAMIENTO 3D */}
-                <group position={[0, floorY + floorThickness, 0]}>
-                  {placedItems.map(item => {
-                    const isAb = item.type === 'puerta' || item.type === 'ventana'
-                    const height = isAb ? 2.10 : 0.45
-                    const yPos = isAb ? height / 2 + 0.10 : height / 2
-                    return (
-                      <mesh key={`item-3d-${item.id}`} position={[item.x + item.w / 2, yPos, item.y + item.l / 2]} castShadow>
-                        <boxGeometry args={[item.w, height, item.l]} />
-                        <meshStandardMaterial color={item.color} />
-                      </mesh>
-                    )
-                  })}
-                </group>
-
-                {/* 🏠 TECHO ÚNICO EN DOS AGUAS PARA TODA LA PLANTA */}
-                <group position={[boundingBox.minX + boundingBox.w / 2, floorY + floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
-                  <mesh position={[-boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, 0.28]} castShadow>
-                    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
-                    <meshStandardMaterial color={roofColor} roughness={0.5} />
-                  </mesh>
-                  <mesh position={[boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, -0.28]} castShadow>
-                    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
-                    <meshStandardMaterial color={roofColor} roughness={0.5} />
-                  </mesh>
-                </group>
-
-                {/* ☔ ALEROS BIOCLIMÁTICOS REGULABLES (Ubicados perfectamente por debajo de la línea del techo) */}
-                <group position={[boundingBox.minX + boundingBox.w / 2, floorY + floorThickness + hMuros + 0.08, boundingBox.minY + boundingBox.l / 2]}>
-                  {eaves.n && (
-                    <mesh position={[0, 0, -boundingBox.l / 2 - (eaveLength / 2)]} rotation={[0.08, 0, 0]} castShadow>
-                      <boxGeometry args={[boundingBox.w + 0.2, 0.02, eaveLength]} />
-                      <meshStandardMaterial color={roofColor} roughness={0.6} />
-                    </mesh>
-                  )}
-                  {eaves.s && (
-                    <mesh position={[0, 0, boundingBox.l / 2 + (eaveLength / 2)]} rotation={[-0.08, 0, 0]} castShadow>
-                      <boxGeometry args={[boundingBox.w + 0.2, 0.02, eaveLength]} />
-                      <meshStandardMaterial color={roofColor} roughness={0.6} />
-                    </mesh>
-                  )}
-                  {eaves.e && (
-                    <mesh position={[boundingBox.w / 2 + (eaveLength / 2), 0, 0]} rotation={[0, 0, -0.08]} castShadow>
-                      <boxGeometry args={[eaveLength, 0.02, boundingBox.l + 0.2]} />
-                      <meshStandardMaterial color={roofColor} roughness={0.6} />
-                    </mesh>
-                  )}
-                  {eaves.o && (
-                    <mesh position={[-boundingBox.w / 2 - (eaveLength / 2), 0, 0]} rotation={[0, 0, 0.08]} castShadow>
-                      <boxGeometry args={[eaveLength, 0.02, boundingBox.l + 0.2]} />
-                      <meshStandardMaterial color={roofColor} roughness={0.6} />
-                    </mesh>
-                  )}
-                </group>
-
               </Center>
+
 
               <OrbitControls enableDamping dampingFactor={0.05} maxPolarAngle={Math.PI / 2.02} makeDefault />
             </Canvas>
