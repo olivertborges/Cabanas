@@ -14,6 +14,15 @@ module.exports = {
         dark: '#1B4332',
         light: '#F8F9FA',
       },
+        keyframes: {
+        'subtle-zoom': {
+          '0%': { transform: 'scale(1.02)' },
+          '100%': { transform: 'scale(1.08)' },
+        },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        }
+      },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
