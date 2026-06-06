@@ -18,7 +18,8 @@ interface RoomBlock {
   color2D: string
 }
 
-export default function InteractiveFloorPlan() {
+export default function InteractiveFloorPlan({ options }: { options?: any }) {
+
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   
   // 🚪 BLOQUES DE AMBIENTES INICIALES (Configurables y Estirables)
