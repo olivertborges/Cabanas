@@ -49,7 +49,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     ]
   }, [cabinWidth, cabinLength])
 
-  // 🛋️ MOBILIARIO Y ABERTURAS COLOCADAS EN EL PLÁNO
+  // 🛋️ MOBILIARIO Y ABERTURAS COLOCADAS EN EL PLANO
   const [placedItems, setPlacedItems] = useState<DraggableItem[]>([
     { id: 'i1', type: 'puerta', x: 2.0, y: 0.0, w: 0.9, l: 0.15, label: '🚪 Puerta Princ.', color: '#ef4444' },
     { id: 'i2', type: 'ventana', x: 4.5, y: 0.0, w: 1.2, l: 0.15, label: '🪟 Ventana', color: '#38bdf8' },
@@ -135,16 +135,43 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
 
   const handleGlobalEnd = () => setIsDragging(false)
 
-  // --- 📐 CONSTANTES DE CORRECCIÓN DE ALTURA REAL (CÉSPED EN Y = 0) ---
+  // --- 📐 CONSTANTES DE ALTURA REAL ---
   const floorThickness = 0.04
-  const hPilotes = 0.60                   // Altura libre de pilotes sobre el pasto
-  // Nivel real donde apoya el calzado/muebles de la casa
+  const hPilotes = 0.60                   
   const floorY = baseType === 'Pilotes' ? hPilotes + floorThickness : 0.20 + floorThickness 
   
-  const hMuros = 2.70                     // Muros interiores más altos
+  const hMuros = 2.70                     
   const extW = cabinWidth + walkwayWidth * 2
   const extL = cabinLength + walkwayWidth * 2
-  const hBaranda = 0.80                   // Cerquita a altura reglamentaria
+  const hBaranda = 0.75                   
+
+  // Algoritmo matemático para calcular muchos palitos en la cerca distribuidos uniformemente
+  const generateBalusters = useMemo(() => {
+    const list: Array<{ pos: [number, number, number]; args: [number, number, number] }> = []
+    const spacing = 0.35 // Separación de 35cm entre palitos de la cerca
+    
+    // Lados paralelos al eje X (Norte y Sur)
+    const countX = Math.floor(extW / spacing)
+    for (let i = 0; i <= countX; i++) {
+      const x = -extW / 2 + (i * (extW / countX))
+      // Cerca Norte
+      list.push({ pos: [x, hBaranda / 2, -extL / 2], args: [0.02, hBaranda, 0.02] })
+      // Cerca Sur
+      list.push({ pos: [x, hBaranda / 2, extL / 2], args: [0.02, hBaranda, 0.02] })
+    }
+
+    // Lados paralelos al eje Z (Este y Oeste)
+    const countZ = Math.floor(extL / spacing)
+    for (let i = 1; i < countZ; i++) {
+      const z = -extL / 2 + (i * (extL / countZ))
+      // Cerca Oeste
+      list.push({ pos: [-extW / 2, hBaranda / 2, z], args: [0.02, hBaranda, 0.02] })
+      // Cerca Este
+      list.push({ pos: [extW / 2, hBaranda / 2, z], args: [0.02, hBaranda, 0.02] })
+    }
+
+    return list
+  }, [extW, extL])
 
   return (
     <div className="flex flex-col xl:flex-row gap-4 p-4 bg-slate-900 text-white rounded-3xl shadow-2xl select-none w-full max-w-7xl mx-auto overflow-hidden">
@@ -153,7 +180,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
       <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 shrink-0 max-h-[480px] xl:max-h-[680px] overflow-y-auto">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
-            Estudio Arquitectura RealScale
+            Estudio Arquitectura RealScale v3
           </span>
           <h2 className="text-lg font-black mt-1">Configurador y Planificación</h2>
         </div>
@@ -207,7 +234,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           <div>
             <label className="flex items-center gap-2 text-amber-400 font-bold text-xs">
               <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} className="rounded bg-slate-950 accent-amber-500" /> 
-              Activar Caminador + Cerquita
+              Activar Caminador + Cerquita Tupida
             </label>
             {hasWalkway && (
               <div className="mt-2">
@@ -295,21 +322,21 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         ) : (
           
-          /* 🌲 SCENARIO RENDER 3D RE-PROPORCIONADO CON CORRECTOR DE ALTURAS FIJAS */
+          /* 🌲 SCENARIO RENDER 3D PERFECCIONADO CON ALEROS BAJOS Y CERQUITA REAL */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas camera={{ position: [cabinWidth / 2, cabinWidth * 1.3, cabinLength * 1.7], fov: 42 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
               <ambientLight intensity={0.9} />
               <directionalLight position={[35, 60, 35]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
               
-              {/* Grilla / Suelo Verde Exacto en Y = 0 */}
+              {/* Grilla / Suelo Verde Exacto */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
                 <planeGeometry args={[220, 220]} />
                 <meshStandardMaterial color="#1b4311" roughness={0.95} />
               </mesh>
 
               <group position={[0, 0, 0]}>
-                {/* 🪵 PILOTES DE APOYO ELEVADOS REALES (Apoyan en Y=0 y suben hasta hPilotes) */}
+                {/* 🪵 PILOTES DE APOYO ELEVADOS REALES */}
                 {baseType === 'Pilotes' && (
                   <group>
                     {[0.1, cabinWidth / 2, cabinWidth - 0.1].map(x =>
@@ -331,7 +358,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </mesh>
                 )}
 
-                {/* 🚶 DECK / CAMINADOR EXTERIOR TOTALMENTE ALINEADO */}
+                {/* 🚶 DECK / CAMINADOR EXTERIOR */}
                 {hasWalkway && (
                   <group>
                     {/* Estructura de suelo exterior */}
@@ -340,7 +367,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                       <meshStandardMaterial color="#3b2314" roughness={0.9} />
                     </mesh>
 
-                    {/* Pilotes del Deck Perimetral */}
+                    {/* Pilotes estructurales del Deck */}
                     {baseType === 'Pilotes' && (
                       <group>
                         {[-walkwayWidth + 0.15, cabinWidth + walkwayWidth - 0.15].map(x =>
@@ -354,31 +381,32 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                       </group>
                     )}
 
-                    {/* 🚧 CERQUITA DE MADERA (BARANDA) FLOTANTE SOBRE EL DECK */}
+                    {/* 🚧 CERQUITA MULTI-PALITOS UNIFORME (MUCHOS PALITOS REALES) */}
                     <group position={[cabinWidth / 2, floorY, cabinLength / 2]}>
-                      <mesh position={[0, hBaranda - 0.02, -extL / 2]}><boxGeometry args={[extW, 0.04, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
-                      <mesh position={[0, hBaranda - 0.02, extL / 2]}><boxGeometry args={[extW, 0.04, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
-                      <mesh position={[-extW / 2, hBaranda - 0.02, 0]}><boxGeometry args={[0.04, 0.04, extL]} /><meshStandardMaterial color="#2d1606" /></mesh>
-                      <mesh position={[extW / 2, hBaranda - 0.02, 0]}><boxGeometry args={[0.04, 0.04, extL]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                      {/* Pasamanos superior continuo */}
+                      <mesh position={[0, hBaranda, -extL / 2]}><boxGeometry args={[extW + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                      <mesh position={[0, hBaranda, extL / 2]}><boxGeometry args={[extW + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                      <mesh position={[-extW / 2, hBaranda, 0]}><boxGeometry args={[0.04, 0.03, extL + 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                      <mesh position={[extW / 2, hBaranda, 0]}><boxGeometry args={[0.04, 0.03, extL + 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
 
-                      {/* Postes verticales de la cerquita apoyados en el deck */}
-                      {[-extW / 2, -cabinWidth / 2, 0, cabinWidth / 2, extW / 2].map((x, i) => (
-                        <group key={`poste-v-${i}`}>
-                          <mesh position={[x, hBaranda / 2, -extL / 2]}><cylinderGeometry args={[0.025, 0.025, hBaranda]} /><meshStandardMaterial color="#2d1606" /></mesh>
-                          <mesh position={[x, hBaranda / 2, extL / 2]}><cylinderGeometry args={[0.025, 0.025, hBaranda]} /><meshStandardMaterial color="#2d1606" /></mesh>
-                        </group>
+                      {/* Renderizado en masa de los "muchos palitos" verticales */}
+                      {generateBalusters.map((baluster, index) => (
+                        <mesh key={`bal-${index}`} position={baluster.pos} castShadow>
+                          <boxGeometry args={baluster.args} />
+                          <meshStandardMaterial color="#3d200c" roughness={0.8} />
+                        </mesh>
                       ))}
                     </group>
                   </group>
                 )}
 
-                {/* SUELO INTERIOR ELEVADO Y EN APARICIÓN PERFECTA */}
+                {/* SUELO INTERIOR */}
                 <mesh position={[cabinWidth / 2, floorY - 0.005, cabinLength / 2]}>
                   <boxGeometry args={[cabinWidth - 0.02, 0.01, cabinLength - 0.02]} />
                   <meshStandardMaterial color="#78350f" roughness={0.65} />
                 </mesh>
 
-                {/* MUROS DE ALTURA COMPLETA (Posición Y corregida al baricentro real) */}
+                {/* MUROS DE ALTURA COMPLETA */}
                 <group position={[0, floorY, 0]}>
                   {rooms.map(r => {
                     const rw = r.max.x - r.min.x
@@ -394,12 +422,12 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   })}
                 </group>
 
-                {/* 🛋️ OBJETOS Y MOBILIARIO TOTALMENTE EN RANGO SOBRE EL PISO */}
+                {/* OBJETOS Y MOBILIARIO */}
                 <group position={[0, floorY, 0]}>
                   {placedItems.map(item => {
                     const isAbertura = item.type === 'puerta' || item.type === 'ventana'
                     const height = isAbertura ? 2.10 : 0.45
-                    const yPos = isAbertura ? height / 2 + 0.10 : height / 2 // Elevar un toque aberturas
+                    const yPos = isAbertura ? height / 2 + 0.10 : height / 2 
                     const zPos = item.y + item.l / 2
                     return (
                       <mesh key={`3d-item-${item.id}`} position={[item.x + item.w / 2, yPos, zPos]} castShadow>
@@ -410,7 +438,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   })}
                 </group>
 
-                {/* 🏠 TECHO MASTER TOTALMENTE ELEVADO (Por encima del dintel de los muros) */}
+                {/* 🏠 TECHO MASTER PRINCIPAL COBIJANTE */}
                 <group position={[cabinWidth / 2, floorY + hMuros, cabinLength / 2]}>
                   <mesh position={[-cabinWidth / 4, 0.45, 0]} rotation={[0, 0, 0.28]} castShadow>
                     <boxGeometry args={[cabinWidth / 1.85, 0.05, cabinLength + 0.4]} />
@@ -422,30 +450,30 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </mesh>
                 </group>
 
-                {/* ☔ ALEROS BIOCLIMÁTICOS INDEPENDIENTES ELEVADOS */}
-                <group position={[cabinWidth / 2, floorY + hMuros + 0.20, cabinLength / 2]}>
+                {/* ☔ ALEROS BIOCLIMÁTICOS BAJOS (Ubicados perfectamente por debajo de la línea del techo) */}
+                <group position={[cabinWidth / 2, floorY + hMuros + 0.10, cabinLength / 2]}>
                   {eaves.n && (
-                    <mesh position={[0, 0.12, -cabinLength / 2 - 0.4]} rotation={[0.15, 0, 0]} castShadow>
-                      <boxGeometry args={[cabinWidth + 0.6, 0.03, 1.0]} />
-                      <meshStandardMaterial color={roofColor} />
+                    <mesh position={[0, 0, -cabinLength / 2 - 0.35]} rotation={[0.10, 0, 0]} castShadow>
+                      <boxGeometry args={[cabinWidth + 0.2, 0.02, 0.8]} />
+                      <meshStandardMaterial color={roofColor} roughness={0.6} />
                     </mesh>
                   )}
                   {eaves.s && (
-                    <mesh position={[0, 0.12, cabinLength / 2 + 0.4]} rotation={[-0.15, 0, 0]} castShadow>
-                      <boxGeometry args={[cabinWidth + 0.6, 0.03, 1.0]} />
-                      <meshStandardMaterial color={roofColor} />
+                    <mesh position={[0, 0, cabinLength / 2 + 0.35]} rotation={[-0.10, 0, 0]} castShadow>
+                      <boxGeometry args={[cabinWidth + 0.2, 0.02, 0.8]} />
+                      <meshStandardMaterial color={roofColor} roughness={0.6} />
                     </mesh>
                   )}
                   {eaves.e && (
-                    <mesh position={[cabinWidth / 2 + 0.4, 0.12, 0]} rotation={[0, 0, -0.15]} castShadow>
-                      <boxGeometry args={[1.0, 0.03, cabinLength + 0.6]} />
-                      <meshStandardMaterial color={roofColor} />
+                    <mesh position={[cabinWidth / 2 + 0.35, 0, 0]} rotation={[0, 0, -0.10]} castShadow>
+                      <boxGeometry args={[0.8, 0.02, cabinLength + 0.2]} />
+                      <meshStandardMaterial color={roofColor} roughness={0.6} />
                     </mesh>
                   )}
                   {eaves.o && (
-                    <mesh position={[-cabinWidth / 2 - 0.4, 0.12, 0]} rotation={[0, 0, 0.15]} castShadow>
-                      <boxGeometry args={[1.0, 0.03, cabinLength + 0.6]} />
-                      <meshStandardMaterial color={roofColor} />
+                    <mesh position={[-cabinWidth / 2 - 0.35, 0, 0]} rotation={[0, 0, 0.10]} castShadow>
+                      <boxGeometry args={[0.8, 0.02, cabinLength + 0.2]} />
+                      <meshStandardMaterial color={roofColor} roughness={0.6} />
                     </mesh>
                   )}
                 </group>
