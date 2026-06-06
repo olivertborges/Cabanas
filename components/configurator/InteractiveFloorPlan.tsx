@@ -15,10 +15,17 @@ interface Room {
   color: string
 }
 
+// Reemplaza esto en tu archivo:
 interface InteractiveFloorPlanProps {
-  options: ConfigOptions
+  options: {
+    size: string
+    customSize?: number
+    finishType?: string
+    extras?: any[]
+  }
   onUpdate?: (rooms: Room[]) => void
 }
+
 
 const roomColors: Record<string, string> = {
   'Dormitorio': '#86efac',
