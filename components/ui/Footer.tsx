@@ -1,62 +1,136 @@
+'use client'
+
 import Link from 'next/link'
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-react'
+import { Facebook, Instagram, Mail, Phone, MapPin, ArrowUpRight } from 'lucide-react'
 
 export default function Footer() {
+  const currentYear = new Date().getFullYear()
+
   return (
-    <footer className="bg-dark text-white pt-12 pb-6">
-      <div className="container-custom">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Sobre nosotros */}
-          <div>
-            <h3 className="text-xl font-bold mb-4">Cabañas Personalizadas</h3>
-            <p className="text-gray-300">
-              Diseñamos y construimos la cabaña de tus sueños con los más altos estándares de calidad.
+    <footer className="bg-gray-950 text-gray-400 border-t border-gray-900 pt-16 pb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        {/* Grilla Principal */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-10 md:gap-8 pb-12">
+          
+          {/* Columna 1: Sobre Nosotros (Más ancha para mejor balance) */}
+          <div className="md:col-span-4 space-y-4">
+            <Link href="/" className="flex items-center space-x-2 group">
+              <span className="text-2xl transition-transform duration-300 group-hover:rotate-12">🏕️</span>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold tracking-tight text-white group-hover:text-amber-400 transition-colors">
+                  Cabañas
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-amber-500 -mt-1">
+                  Personalizadas
+                </span>
+              </div>
+            </Link>
+            <p className="text-sm leading-relaxed text-gray-400 max-w-sm">
+              Diseñamos y construimos la cabaña de tus sueños con tecnología de personalización en tiempo real y los más altos estándares de calidad.
             </p>
           </div>
 
-          {/* Enlaces rápidos */}
-          <div>
-            <h3 className="text-xl font-bold mb-4">Enlaces rápidos</h3>
-            <ul className="space-y-2">
-              <li><Link href="/" className="text-gray-300 hover:text-secondary transition">Inicio</Link></li>
-              <li><Link href="/modelos" className="text-gray-300 hover:text-secondary transition">Modelos</Link></li>
-              <li><Link href="/configurador" className="text-gray-300 hover:text-secondary transition">Configurador</Link></li>
-              <li><Link href="/galeria" className="text-gray-300 hover:text-secondary transition">Galería</Link></li>
+          {/* Columna 2: Enlaces Rápidos */}
+          <div className="md:col-span-2 md:col-start-6">
+            <h3 className="text-sm font-semibold tracking-wider text-white uppercase mb-4">
+              Explorar
+            </h3>
+            <ul className="space-y-2.5 text-sm">
+              {[
+                { name: 'Inicio', href: '/' },
+                { name: 'Modelos', href: '/modelos' },
+                { name: 'Configurador', href: '/configurador' },
+                { name: 'Galería', href: '/galeria' },
+              ].map((link) => (
+                <li key={link.name}>
+                  <Link 
+                    href={link.href} 
+                    className="hover:text-amber-400 transition-colors duration-200 flex items-center gap-0.5 group"
+                  >
+                    <span>{link.name}</span>
+                    <ArrowUpRight className="w-3 h-3 opacity-0 -translate-y-0.5 translate-x-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:translate-y-0 transition-all" />
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Contacto */}
-          <div>
-            <h3 className="text-xl font-bold mb-4">Contacto</h3>
-            <ul className="space-y-2">
-              <li className="flex items-center space-x-2">
-                <Phone size={18} />
-                <span>+598 97 741 459</span>
+          {/* Columna 3: Contacto */}
+          <div className="md:col-span-3">
+            <h3 className="text-sm font-semibold tracking-wider text-white uppercase mb-4">
+              Contacto
+            </h3>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <a 
+                  href="tel:+59897741459" 
+                  className="flex items-center space-x-3 hover:text-white transition-colors group"
+                >
+                  <div className="p-2 bg-gray-900 rounded-lg group-hover:bg-amber-500/10 group-hover:text-amber-400 transition-colors">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <span>+598 97 741 459</span>
+                </a>
               </li>
-              <li className="flex items-center space-x-2">
-                <Mail size={18} />
-                <span>cabanasrodriguez@gmail.com</span>
+              <li>
+                <a 
+                  href="mailto:cabanasrodriguez@gmail.com" 
+                  className="flex items-center space-x-3 hover:text-white transition-colors group"
+                >
+                  <div className="p-2 bg-gray-900 rounded-lg group-hover:bg-amber-500/10 group-hover:text-amber-400 transition-colors">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <span className="break-all">cabanasrodriguez@gmail.com</span>
+                </a>
               </li>
-              <li className="flex items-center space-x-2">
-                <MapPin size={18} />
+              <li className="flex items-center space-x-3 text-gray-400">
+                <div className="p-2 bg-gray-900 rounded-lg">
+                  <MapPin className="w-4 h-4" />
+                </div>
                 <span>Montevideo, Uruguay</span>
               </li>
             </ul>
           </div>
 
-          {/* Redes sociales */}
-          <div>
-            <h3 className="text-xl font-bold mb-4">Seguinos</h3>
-            <div className="flex space-x-4">
-              <a href="https://www.facebook.com/cabanasrodriguezas/" className="hover:text-secondary transition"><Facebook size={24} /></a>
-              <a href="https://www.instagram.com/casasprefabricadas.uy?igsh=OTNkaDllbHEyeGZ4" className="hover:text-secondary transition"><Instagram size={24} /></a>
+          {/* Columna 4: Redes Sociales */}
+          <div className="md:col-span-2">
+            <h3 className="text-sm font-semibold tracking-wider text-white uppercase mb-4">
+              Seguinos
+            </h3>
+            <div className="flex space-x-3">
+              <a 
+                href="https://www.facebook.com/cabanasrodriguezas/" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="p-3 bg-gray-900 hover:bg-amber-600 text-gray-400 hover:text-white rounded-xl transition-all duration-300 hover:-translate-y-1 block"
+                aria-label="Facebook"
+              >
+                <Facebook className="w-5 h-5" />
+              </a>
+              <a 
+                href="https://www.instagram.com/casasprefabricadas.uy?igsh=OTNkaDllbHEyeGZ4" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="p-3 bg-gray-900 hover:bg-amber-600 text-gray-400 hover:text-white rounded-xl transition-all duration-300 hover:-translate-y-1 block"
+                aria-label="Instagram"
+              >
+                <Instagram className="w-5 h-5" />
+              </a>
             </div>
+          </div>
+
+        </div>
+
+        {/* Línea divisoria y Copyright */}
+        <div className="border-t border-gray-900 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <p>&copy; {currentYear} Cabañas Personalizadas. Todos los derechos reservados.</p>
+          <div className="flex space-x-6 text-gray-500">
+            <Link href="#" className="hover:text-gray-400 transition-colors">Política de Privacidad</Link>
+            <Link href="#" className="hover:text-gray-400 transition-colors">Términos de Servicio</Link>
           </div>
         </div>
 
-        <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
-          <p>&copy; 2026 Cabañas Personalizadas - Todos los derechos reservados</p>
-        </div>
       </div>
     </footer>
   )
