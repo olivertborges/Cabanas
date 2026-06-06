@@ -47,8 +47,10 @@ const ROOF_COLORS = [
   { hex: '#57534e', name: '🪨 Zinc Natural' }
 ]
 
-export default function InteractiveFloorPlan() {
+export default function InteractiveFloorPlan({ options }: { options?: any }) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
+ 
+
   
   // 🚶 VARIABLES DINÁMICAS DEL CAMINADOR Y ALEROS
   const [walkwayWidth, setWalkwayWidth] = useState<number>(1.2) // Ancho del pasillo
