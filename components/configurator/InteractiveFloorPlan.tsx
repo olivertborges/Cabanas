@@ -299,7 +299,8 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           <div className="w-full h-[560px] relative">
             <Canvas camera={{ position: [globalBounds.cx, 10, globalBounds.cy + 10], fov: 40 }} shadows>
               <color attach="background" args={['#e0f2fe']} />
-              <Sky sunPosition={[100, 150, 100]} inclination={0.6} elevation={45} />
+              <Sky sunPosition={[100, 150, 100]} />
+
               <ambientLight intensity={0.9} />
               <directionalLight position={[25, 35, 20]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
               
