@@ -111,8 +111,8 @@ export default function HomePage() {
             <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-slate-300 rounded-bl-lg pointer-events-none opacity-60" />
             <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-slate-300 rounded-br-lg pointer-events-none opacity-60" />
             
-            <InteractiveFloorPlan options={defaultCabinOptions} />
-          </div>
+          <InteractiveFloorPlan />
+
 
           <p className="text-center text-xs text-slate-400 font-medium mt-6">
             💡 Consejo: Usá dos dedos en móviles o la rueda del mouse en PC para orbitar y hacer zoom en la pestaña 3D.
