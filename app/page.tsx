@@ -31,7 +31,7 @@ export default function HomePage() {
 
   const defaultCabinOptions = {
     size: '6x6' as const
-  }
+  };
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans antialiased selection:bg-emerald-500 selection:text-white overflow-x-hidden">
