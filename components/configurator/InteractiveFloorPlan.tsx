@@ -17,7 +17,9 @@ interface RoomBlock {
   color2D: string
 }
 
-export default function InteractiveFloorPlan() {
+// CAMBIALO A ESTO:
+export default function InteractiveFloorPlan({ options }: { options?: any }) {
+
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   
   // 📏 MEDIDAS MASTER DE LA CABAÑA BASE
