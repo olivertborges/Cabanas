@@ -28,6 +28,11 @@ interface DraggableItem {
   color: string
 }
 
+// Interfaz para recibir las props del Wizard sin errores de compilación
+interface InteractiveFloorPlanProps {
+  options?: any // Acepta las opciones de configuración del Wizard
+}
+
 const WALL_COLORS = [
   { hex: '#b45309', name: '🪵 Roble Natural' },
   { hex: '#78350f', name: '🪵 Nogal Oscuro' },
@@ -46,10 +51,10 @@ const ROOF_COLORS = [
   { hex: '#57534e', name: '🪨 Zinc Natural' }
 ]
 
-export default function InteractiveFloorPlan() {
+export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanProps) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   
-  // Extensiones mas holgadas y naturales
+  // Extensiones holgadas y naturales
   const [walkwayWidth, setWalkwayWidth] = useState<string>('1.2')
   const [eaveLength, setEaveLength] = useState<string>('0.8')
   const [hasWalkway, setHasWalkway] = useState<boolean>(true)
@@ -129,7 +134,7 @@ export default function InteractiveFloorPlan() {
 
   const addItemToPlan = (type: 'puerta' | 'ventana' | 'cama' | 'sillon' | 'mesa') => {
     const presets: Record<string, { w: number; l: number; label: string; color: string }> = {
-      puerta: { w: 1.0, l: 0.35, label: '🚪 Puerta', color: '#ef4444' }, // Más grandes en plano para agarrar fácil
+      puerta: { w: 1.0, l: 0.35, label: '🚪 Puerta', color: '#ef4444' }, 
       ventana: { w: 1.4, l: 0.35, label: '🪟 Ventana', color: '#38bdf8' },
       cama: { w: 1.9, l: 2.0, label: '🛏️ Cama', color: '#a855f7' },
       sillon: { w: 1.6, l: 0.8, label: '🛋️ Sillón', color: '#f97316' },
@@ -171,14 +176,12 @@ export default function InteractiveFloorPlan() {
     if (!coords) return
 
     if (selectedType === 'room') {
-      // Los módulos mantienen un snap sutil de 0.25 para encastrar bien
       setRooms(prev => prev.map(r => r.id === selectedId ? { 
         ...r, 
         x: Math.round((coords.x - dragOffset.x) * 4) / 4, 
         y: Math.round((coords.y - dragOffset.y) * 4) / 4 
       } : r))
     } else {
-      // OBJETOS Y ABERTURAS: Movimiento 100% libre, sin trabas ni rigidez
       setPlacedItems(prev => prev.map(it => it.id === selectedId ? { 
         ...it, 
         x: coords.x - dragOffset.x, 
@@ -191,7 +194,6 @@ export default function InteractiveFloorPlan() {
     return selectedType === 'room' ? rooms.find(r => r.id === selectedId) || null : null
   }, [rooms, selectedId, selectedType])
 
-  // --- PARSEADORES DE INPUTS SEGUROS (Permiten borrar todo) ---
   const handleNumericPropChange = (id: string, field: 'w' | 'l', textValue: string) => {
     setRooms(prev => prev.map(r => {
       if (r.id !== id) return r
@@ -242,7 +244,7 @@ export default function InteractiveFloorPlan() {
       <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 shrink-0 max-h-[520px] xl:max-h-[740px] overflow-y-auto">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
-            Estudio Arquitectura v4.2
+            Estudio Arquitectura v4.3
           </span>
           <h2 className="text-lg font-black mt-1">Modelador de Cabañas</h2>
         </div>
@@ -401,7 +403,7 @@ export default function InteractiveFloorPlan() {
           </div>
         ) : (
           
-          /* 🌲 RENDER 3D PERFECCIONADO (Techo Adaptable y Elevado) */
+          /* 🌲 RENDER 3D PERFECCIONADO */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, hMuros + 5, boundingBox.minY + boundingBox.l + 6], fov: 42 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
@@ -450,7 +452,7 @@ export default function InteractiveFloorPlan() {
                     </mesh>
 
                     <group position={[0, floorThickness, 0]}>
-                      {/* Pasamanos Superior Rígido */}
+                      {/* Pasamanos Superior */}
                       <group position={[boundingBox.minX + boundingBox.w / 2, hBaranda, boundingBox.minY + boundingBox.l / 2]}>
                          <mesh position={[0, 0, -(boundingBox.l + numWalkway * 2) / 2]}><boxGeometry args={[boundingBox.w + numWalkway * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
                          <mesh position={[0, 0, (boundingBox.l + numWalkway * 2) / 2]}><boxGeometry args={[boundingBox.w + numWalkway * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
@@ -488,12 +490,12 @@ export default function InteractiveFloorPlan() {
                   ))}
                 </group>
 
-                {/* PUERTAS, VENTANAS Y MUEBLES (Alineación corregida a escala real) */}
+                {/* PUERTAS, VENTANAS Y MUEBLES */}
                 <group position={[0, floorThickness, 0]}>
                   {placedItems.map(item => {
                     const isAb = item.type === 'puerta' || item.type === 'ventana'
                     const realWidth = isAb ? (item.type === 'puerta' ? 0.90 : 1.20) : item.w
-                    const realLength = isAb ? 0.12 : item.l // Espesor exacto del muro para aberturas
+                    const realLength = isAb ? 0.12 : item.l 
                     const height = isAb ? 2.05 : 0.45
                     const yPos = isAb ? height / 2 + 0.05 : height / 2
                     
@@ -515,7 +517,7 @@ export default function InteractiveFloorPlan() {
                   })}
                 </group>
 
-                {/* 🏠 TECHO ADAPTABLE MÁS ALTO (Sincronizado dinámicamente) */}
+                {/* 🏠 TECHO ADAPTABLE MÁS ALTO */}
                 <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
                   <mesh position={[-boundingBox.w / 4, 0.70, 0]} rotation={[0, 0, 0.32]} castShadow>
                     <boxGeometry args={[boundingBox.w / 1.8 + numEave, 0.06, boundingBox.l + numEave * 2]} />
