@@ -534,7 +534,6 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </group>
 
                 </group>
-              </Center>
 
               <OrbitControls enableDamping dampingFactor={0.05} maxPolarAngle={Math.PI / 2.02} makeDefault />
             </Canvas>
