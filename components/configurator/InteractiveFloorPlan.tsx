@@ -476,19 +476,21 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   })}
                 </group>
 
-                {/* 🏠 ESTRUCTURA DE TECHOS DINÁMICOS ADAPTADOS AL PERÍMETRO */}
-                {rooms.map(r => (
-                  <group key={`roof-3d-${r.id}`} position={[r.x + r.w / 2, floorY + hMuros, r.y + r.l / 2]}>
-                    <mesh position={[-r.w / 4, 0.40, 0]} rotation={[0, 0, 0.28]} castShadow>
-                      <boxGeometry args={[r.w / 1.85, 0.05, r.l + 0.3]} />
-                      <meshStandardMaterial color={roofColor} roughness={0.5} />
-                    </mesh>
-                    <mesh position={[r.w / 4, 0.40, 0]} rotation={[0, 0, -0.28]} castShadow>
-                      <boxGeometry args={[r.w / 1.85, 0.05, r.l + 0.3]} />
-                      <meshStandardMaterial color={roofColor} roughness={0.5} />
-                    </mesh>
-                  </group>
-                ))}
+                {/* 🏠 TECHO ÚNICO Y CONTINUO PARA TODA LA ESTRUCTURA */}
+<group position={[boundingBox.minX + boundingBox.w / 2, floorY + hMuros, boundingBox.minY + boundingBox.l / 2]}>
+  {/* Pendiente izquierda */}
+  <mesh position={[-boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, 0.28]} castShadow>
+    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
+    <meshStandardMaterial color={roofColor} roughness={0.5} />
+  </mesh>
+  
+  {/* Pendiente derecha */}
+  <mesh position={[boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, -0.28]} castShadow>
+    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
+    <meshStandardMaterial color={roofColor} roughness={0.5} />
+  </mesh>
+</group>
+
 
                 {/* ☔ ALEROS BIOCLIMÁTICOS PERFECCIONADOS (Por debajo de la línea del techo principal y con largo regulable) */}
                 <group position={[boundingBox.minX + boundingBox.w / 2, floorY + hMuros + 0.08, boundingBox.minY + boundingBox.l / 2]}>
