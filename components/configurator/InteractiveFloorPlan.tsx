@@ -408,7 +408,6 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                 <meshStandardMaterial color="#1a3d10" roughness={0.95} />
               </mesh>
 
-              <Center>
                 {/* 🏠 GRUPO MAESTRO ELEVADO: Esto saca de la tierra absolutamente todo */}
                 <group position={[0, floorY, 0]}>
                   
