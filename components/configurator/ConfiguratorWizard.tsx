@@ -163,7 +163,9 @@ export default function ConfiguratorWizard() {
                   <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
                     <span className="text-sm text-gray-500 font-medium">Dimensiones base:</span>
                     <span className="text-sm font-bold text-gray-900 bg-white px-2.5 py-1 rounded-lg shadow-sm border">
-                      {options.size === 'custom' && options.customSize ? `6x${options.customSize} (${6 * options.customSize}m²)` : `${options.size} (${prices.area || 0}m²)`}
+                      // Reemplazá la línea 166 por esto:
+{options.size === 'custom' && options.customSize ? `6x${options.customSize} (${6 * options.customSize}m²)` : `${options.size} (${(prices as any).area || 0}m²)`}
+
                     </span>
                   </div>
                   
