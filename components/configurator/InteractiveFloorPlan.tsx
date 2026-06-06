@@ -49,8 +49,6 @@ const ROOF_COLORS = [
 
 export default function InteractiveFloorPlan({ options }: { options?: any }) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
- 
-
   
   // 🚶 VARIABLES DINÁMICAS DEL CAMINADOR Y ALEROS
   const [walkwayWidth, setWalkwayWidth] = useState<number>(1.2) // Ancho del pasillo
@@ -84,7 +82,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const scale = 35 
 
-  // --- CÁLCULO DE ENVOLVENTE MÁXIMA EN TIEMPO REAL (Para el caminador y cámara) ---
+  // --- CÁLCULO DE ENVOLVENTE MÁXIMA EN TIEMPO REAL (Para el caminador, techo único y cámara) ---
   const boundingBox = useMemo(() => {
     if (rooms.length === 0) return { minX: 0, maxX: 6, minY: 0, maxY: 6, w: 6, l: 6 }
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
@@ -185,7 +183,6 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     }
   }
 
-  // --- MODIFICACIÓN MANUAL DE ATRIBUTOS DEL ELEMENTO SELECCIONADO ---
   const selectedRoomObj = useMemo(() => {
     if (selectedType === 'room') return rooms.find(r => r.id === selectedId) || null
     return null
@@ -196,14 +193,14 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     setRooms(prev => prev.map(r => r.id === selectedId ? { ...r, [field]: val } : r))
   }
 
-  // --- PARÁMETROS ESTRUCTURALES DEL ENTORNO 3D ---
+  // --- 📐 CONSTANTES DE ALTURA CONSTRUCTIVA REAL ---
   const floorThickness = 0.04
   const hPilotes = 0.60                   
-  const floorY = baseType === 'Pilotes' ? hPilotes + floorThickness : 0.20 + floorThickness 
+  const floorY = baseType === 'Pilotes' ? hPilotes : 0.20 
   const hMuros = 2.70                     
   const hBaranda = 0.75                   
 
-  // Generador de palitos (Balaustres) distribuidos matemáticamente según el perímetro dinámico
+  // Generador dinámico de palitos (Balaustres) según el perímetro total
   const generateBalusters = useMemo(() => {
     const list: Array<{ pos: [number, number, number] }> = []
     if (!hasWalkway) return list
@@ -214,14 +211,14 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
     const cX = boundingBox.minX + boundingBox.w / 2
     const cZ = boundingBox.minY + boundingBox.l / 2
 
-    // Norte y Sur
+    // Cerca perimetral Norte y Sur
     const stepsX = Math.floor(eW / spacing)
     for (let i = 0; i <= stepsX; i++) {
       const x = (cX - eW / 2) + (i * (eW / stepsX))
       list.push({ pos: [x, hBaranda / 2, cZ - eL / 2] })
       list.push({ pos: [x, hBaranda / 2, cZ + eL / 2] })
     }
-    // Este y Oeste
+    // Cerca perimetral Este y Oeste
     const stepsZ = Math.floor(eL / spacing)
     for (let i = 1; i < stepsZ; i++) {
       const z = (cZ - eL / 2) + (i * (eL / stepsZ))
@@ -253,7 +250,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </button>
         </div>
 
-        {/* 🎨 SECTOR NUEVO: COLORES DE MATERIALES */}
+        {/* 🎨 SECTOR: COLORES DE MATERIALES */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
           <div>
             <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2">🏠 Tono Cabaña y Caminador:</p>
@@ -280,7 +277,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         </div>
 
-        {/* 📏 SECTOR NUEVO: MEDIDAS PRECISAS DE CAMINADOR Y ALERO */}
+        {/* 📏 SECTOR: MEDIDAS PRECISAS DE CAMINADOR Y ALERO */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2.5">
           <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">📏 Configurar Extensiones:</p>
           <div className="grid grid-cols-2 gap-2">
@@ -293,12 +290,23 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
               <input type="number" min="0.2" max="2.5" step="0.1" value={eaveLength} onChange={(e) => setEaveLength(parseFloat(e.target.value) || 0.2)} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-xs text-center font-mono font-bold text-sky-400 outline-none" />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-[11px] text-slate-300 mt-1">
-            <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} className="rounded accent-amber-500" /> Visibilidad de Cerca Perimetral
-          </label>
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Cimentación:</label>
+              <select value={baseType} onChange={(e) => setBaseType(e.target.value as any)} className="w-full bg-slate-950 border border-slate-700 p-1 rounded text-xs text-white">
+                <option value="Pilotes">🪵 Pilotes Elevados</option>
+                <option value="PlateaHormigon">🧱 Platea de Fundación</option>
+              </select>
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 text-[11px] text-slate-300">
+                <input type="checkbox" checked={hasWalkway} onChange={(e) => setHasWalkway(e.target.checked)} className="rounded accent-amber-500" /> Ver Cerca / Cerca
+              </label>
+            </div>
+          </div>
         </div>
 
-        {/* 🧱 EDITOR DE PLANTA EN L Y HABITACIONES */}
+        {/* 🧱 MODELADO EN PLANTA */}
         {activeTab === '2d' && (
           <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
             <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">🧱 Modelado Estructural Libre:</p>
@@ -310,7 +318,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
               <button onClick={() => addItemToPlan('sillon')} className="p-1.5 bg-slate-950 hover:bg-slate-800 rounded border border-slate-700">🛋️ Añadir Sillón</button>
             </div>
 
-            {/* EDICIÓN DE MEDIDAS ESPECÍFICAS DE CADA MÓDULO */}
+            {/* EDICIÓN DE MEDIDAS DE MÓDULOS */}
             {selectedRoomObj && (
               <div className="bg-slate-950 p-2.5 rounded border border-slate-700 space-y-2 mt-2">
                 <p className="text-[10px] font-black text-emerald-400">✏️ Editar {selectedRoomObj.name}:</p>
@@ -337,7 +345,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
         )}
       </div>
 
-      {/* 🖥️ VISTA GRÁFICA INTERACTIVA */}
+      {/* 🖥/ VISTA GRÁFICA INTERACTIVA */}
       <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 relative min-h-[500px] sm:min-h-[640px] w-full flex justify-center items-center overflow-hidden">
         {activeTab === '2d' ? (
           <div className="w-full h-full flex flex-col justify-center items-center p-4 bg-[radial-gradient(#334155_1.1px,transparent_1.1px)] [background-size:20px_20px]">
@@ -353,7 +361,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
               onTouchEnd={() => setIsDragging(false)}
               className="w-full h-full max-h-[520px] bg-slate-900 rounded-xl border border-slate-800 shadow-xl touch-none"
             >
-              {/* CAMINADOR / DECK DINÁMICO INTEGRADO PERIMETRAL */}
+              {/* CAMINADOR PERIMETRAL EN PLANO 2D */}
               {hasWalkway && (
                 <rect 
                   x={(boundingBox.minX - walkwayWidth) * scale} 
@@ -364,7 +372,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                 />
               )}
 
-              {/* DIBUJO DE MÓDULOS DE HABITACIONES (EDITABLES INDIVIDUALMENTE) */}
+              {/* RENDER MÓDULOS DE HABITACIONES */}
               {rooms.map(r => {
                 const isSel = r.id === selectedId && selectedType === 'room'
                 return (
@@ -375,7 +383,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                 )
               })}
 
-              {/* DIBUJO DE ITEMS MUEBLES / ABERTURAS */}
+              {/* RENDER ITEMS INDEPENDIENTES */}
               {placedItems.map(item => {
                 const isSel = item.id === selectedId && selectedType === 'item'
                 return (
@@ -389,21 +397,21 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         ) : (
           
-          /* 🌲 RENDER 3D PROFESIONAL COMPLETO EN L, CON MATERIALES Y ALEROS CORREGIDOS */
+          /* 🌲 SCENARIO RENDER 3D PROFESIONAL COMPLETO */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, boundingBox.w * 1.4, boundingBox.minY + boundingBox.l * 1.6], fov: 42 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
               <ambientLight intensity={0.9} />
               <directionalLight position={[40, 60, 40]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
               
-              {/* Terreno */}
+              {/* Terreno / Césped */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
                 <planeGeometry args={[250, 250]} />
                 <meshStandardMaterial color="#1a3d10" roughness={0.95} />
               </mesh>
 
               <Center>
-                {/* 🪵 PILOTES CALCULADOS AUTOMÁTICAMENTE BAJO LOS MÓDULOS */}
+                {/* 🪵 PILOTES DE APOYO AUTOMÁTICOS BAJO LOS MÓDULOS */}
                 {baseType === 'Pilotes' && (
                   <group>
                     {rooms.map((r, rIdx) => (
@@ -421,7 +429,15 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </group>
                 )}
 
-                {/* 🚶 CAMINADOR CON MEDIDAS DINÁMICAS (Adopta el mismo color que la cabaña) */}
+                {/* PLATEA DE HORMIGÓN EN VOLUMEN COMPLETO (Si se selecciona) */}
+                {baseType === 'PlateaHormigon' && (
+                  <mesh position={[boundingBox.minX + boundingBox.w / 2, 0.10, boundingBox.minY + boundingBox.l / 2]} receiveShadow>
+                    <boxGeometry args={[boundingBox.w, 0.20, boundingBox.l]} />
+                    <meshStandardMaterial color="#4b5563" roughness={0.6} />
+                  </mesh>
+                )}
+
+                {/* 🚶 CAMINADOR COMPLETO PERIMETRAL EN "L" (Toma el mismo color que la cabaña) */}
                 {hasWalkway && (
                   <group>
                     <mesh position={[boundingBox.minX + boundingBox.w / 2, floorY - (floorThickness / 2), boundingBox.minY + boundingBox.l / 2]} receiveShadow>
@@ -429,8 +445,12 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                       <meshStandardMaterial color={woodColor} roughness={0.85} />
                     </mesh>
 
-                    {/* 🚧 CERQUITA MULTI-PALITOS (TUPIDA) EN TODO EL CONTORNO */}
+                    {/* 🚧 CERQUITA DE MUCHOS PALITOS EN TORNO AL CAMINADOR */}
                     <group position={[0, floorY, 0]}>
+                      {/* Pasamanos continuo */}
+                      <mesh position={[boundingBox.minX + boundingBox.w / 2, hBaranda, boundingBox.minY - walkwayWidth]}><boxGeometry args={[boundingBox.w + walkwayWidth * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                      <mesh position={[boundingBox.minX + boundingBox.w / 2, hBaranda, boundingBox.minY + boundingBox.l + walkwayWidth]}><boxGeometry args={[boundingBox.w + walkwayWidth * 2 + 0.04, 0.03, 0.04]} /><meshStandardMaterial color="#2d1606" /></mesh>
+                      
                       {generateBalusters.map((bal, idx) => (
                         <mesh key={`b-3d-${idx}`} position={bal.pos} castShadow>
                           <boxGeometry args={[0.025, hBaranda, 0.025]} />
@@ -441,16 +461,16 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </group>
                 )}
 
-                {/* SUELOS INTERIORES DE LAS DIVISIONES */}
+                {/* 🧱 SUELOS INTERIORES CORREGIDOS (Justo arriba de la base sin quedar enterrados) */}
                 {rooms.map(r => (
-                  <mesh key={`floor-3d-${r.id}`} position={[r.x + r.w / 2, floorY - 0.005, r.y + r.l / 2]}>
-                    <boxGeometry args={[r.w - 0.02, 0.01, r.l - 0.02]} />
+                  <mesh key={`floor-3d-${r.id}`} position={[r.x + r.w / 2, floorY + (floorThickness / 2), r.y + r.l / 2]} receiveShadow>
+                    <boxGeometry args={[r.w - 0.02, floorThickness, r.l - 0.02]} />
                     <meshStandardMaterial color="#5c2d0c" roughness={0.7} />
                   </mesh>
                 ))}
 
-                {/* PAREDES EXTRUIDAS EN BASE AL DISEÑO EN L */}
-                <group position={[0, floorY, 0]}>
+                {/* 🧱 PAREDES EXTRUIDAS EN BASE AL COMPLEMENTO DE ZONAS */}
+                <group position={[0, floorY + floorThickness, 0]}>
                   {rooms.map(r => (
                     <group key={`walls-3d-${r.id}`}>
                       <mesh position={[r.x + r.w / 2, hMuros / 2, r.y]} castShadow><boxGeometry args={[r.w, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
@@ -461,8 +481,8 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   ))}
                 </group>
 
-                {/* MOBILIARIO Y ABERTURAS COLOCADAS */}
-                <group position={[0, floorY, 0]}>
+                {/* MOBILIARIO Y EQUIPAMIENTO 3D */}
+                <group position={[0, floorY + floorThickness, 0]}>
                   {placedItems.map(item => {
                     const isAb = item.type === 'puerta' || item.type === 'ventana'
                     const height = isAb ? 2.10 : 0.45
@@ -476,24 +496,20 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   })}
                 </group>
 
-                {/* 🏠 TECHO ÚNICO Y CONTINUO PARA TODA LA ESTRUCTURA */}
-<group position={[boundingBox.minX + boundingBox.w / 2, floorY + hMuros, boundingBox.minY + boundingBox.l / 2]}>
-  {/* Pendiente izquierda */}
-  <mesh position={[-boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, 0.28]} castShadow>
-    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
-    <meshStandardMaterial color={roofColor} roughness={0.5} />
-  </mesh>
-  
-  {/* Pendiente derecha */}
-  <mesh position={[boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, -0.28]} castShadow>
-    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
-    <meshStandardMaterial color={roofColor} roughness={0.5} />
-  </mesh>
-</group>
+                {/* 🏠 TECHO ÚNICO EN DOS AGUAS PARA TODA LA PLANTA */}
+                <group position={[boundingBox.minX + boundingBox.w / 2, floorY + floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
+                  <mesh position={[-boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, 0.28]} castShadow>
+                    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
+                    <meshStandardMaterial color={roofColor} roughness={0.5} />
+                  </mesh>
+                  <mesh position={[boundingBox.w / 4, 0.40, 0]} rotation={[0, 0, -0.28]} castShadow>
+                    <boxGeometry args={[boundingBox.w / 1.85, 0.05, boundingBox.l + 0.3]} />
+                    <meshStandardMaterial color={roofColor} roughness={0.5} />
+                  </mesh>
+                </group>
 
-
-                {/* ☔ ALEROS BIOCLIMÁTICOS PERFECCIONADOS (Por debajo de la línea del techo principal y con largo regulable) */}
-                <group position={[boundingBox.minX + boundingBox.w / 2, floorY + hMuros + 0.08, boundingBox.minY + boundingBox.l / 2]}>
+                {/* ☔ ALEROS BIOCLIMÁTICOS REGULABLES (Ubicados perfectamente por debajo de la línea del techo) */}
+                <group position={[boundingBox.minX + boundingBox.w / 2, floorY + floorThickness + hMuros + 0.08, boundingBox.minY + boundingBox.l / 2]}>
                   {eaves.n && (
                     <mesh position={[0, 0, -boundingBox.l / 2 - (eaveLength / 2)]} rotation={[0.08, 0, 0]} castShadow>
                       <boxGeometry args={[boundingBox.w + 0.2, 0.02, eaveLength]} />
