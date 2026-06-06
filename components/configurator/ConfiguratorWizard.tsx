@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import FinishTypeSelector from './FinishTypeSelector'
 import SizeSelector from './SizeSelector'
 import OptionsPanel from './OptionsPanel'
@@ -9,9 +9,8 @@ import InteractiveFloorPlan from './InteractiveFloorPlan'
 import { ConfigOptions, FinishType, calculatePrice, getUSDtoUYU, convertToUYU } from '@/utils/priceCalculator'
 import { getWhatsAppLink } from '@/utils/whatsapp'
 import { generatePDFBlob } from '@/utils/pdfGenerator'
-import { Download, Send } from 'lucide-react'
+import { Download, Send, ArrowRight, ArrowLeft, Check, ClipboardList } from 'lucide-react'
 
-// Nuevo orden: 1. Tamaño, 2. Tipo de entrega, 3. Personalización, 4. Plano, 5. Resumen
 const steps = ['Tamaño', 'Tipo de entrega', 'Personalización', 'Plano', 'Resumen']
 
 export default function ConfiguratorWizard() {
@@ -28,15 +27,16 @@ export default function ConfiguratorWizard() {
     caminadorMetros: 0
   })
 
-  // Cargar cotización del dólar
-  useState(() => {
-    getUSDtoUYU().then(rate => setExchangeRate(rate))
-  })
+  // Corrección de ciclo de vida: Cargar cotización correctamente usando useEffect
+  useEffect(() => {
+    getUSDtoUYU()
+      .then(rate => setExchangeRate(rate))
+      .catch(err => console.error("Error cargando cotización:", err))
+  }, [])
 
-  // Actualizar finishType en options cuando cambie
   const handleFinishTypeChange = (type: FinishType) => {
     setFinishType(type)
-    setOptions({ ...options, finishType: type })
+    setOptions(prev => ({ ...prev, finishType: type }))
   }
 
   const prices = calculatePrice(options)
@@ -45,14 +45,14 @@ export default function ConfiguratorWizard() {
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1)
+      setCurrentStep(prev => prev + 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
   const handlePrev = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
+      setCurrentStep(prev => prev - 1)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
@@ -67,102 +67,182 @@ export default function ConfiguratorWizard() {
   }
 
   return (
-    <div className="container-custom py-12">
-      {/* Steps */}
-      <div className="mb-12">
-        <div className="flex justify-between items-center max-w-3xl mx-auto overflow-x-auto">
-          {steps.map((step, index) => (
-            <div key={step} className="flex flex-col items-center min-w-[70px]">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                index <= currentStep ? 'bg-primary text-white' : 'bg-gray-300 text-gray-600'
-              }`}>
-                {index + 1}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 min-h-[80vh] bg-gray-50/50">
+      
+      {/* Indicador de Pasos (Stepper) de Diseño Líquido */}
+      <div className="mb-12 relative max-w-4xl mx-auto px-4">
+        {/* Línea gris de fondo */}
+        <div className="absolute top-5 left-12 right-12 h-0.5 bg-gray-200 -z-10 hidden sm:block" />
+        {/* Línea de progreso de color activa */}
+        <div 
+          className="absolute top-5 left-12 h-0.5 bg-amber-600 transition-all duration-500 -z-10 hidden sm:block"
+          style={{ width: `${(currentStep / (steps.length - 1)) * 82}%` }}
+        />
+
+        <div className="flex justify-between items-center overflow-x-auto pb-2 scrollbar-none">
+          {steps.map((step, index) => {
+            const isCompleted = index < currentStep
+            const isActive = index === currentStep
+
+            return (
+              <div key={step} className="flex flex-col items-center flex-1 min-w-[80px] group">
+                <button
+                  onClick={() => index < currentStep && setCurrentStep(index)}
+                  disabled={index >= currentStep}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-300 ${
+                    isCompleted 
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' 
+                      : isActive 
+                        ? 'bg-gray-900 text-white ring-4 ring-gray-900/10 scale-105' 
+                        : 'bg-white text-gray-400 border border-gray-200'
+                  }`}
+                >
+                  {isCompleted ? <Check className="w-5 h-5" /> : index + 1}
+                </button>
+                <span className={`text-xs mt-2 font-medium transition-colors ${
+                  isActive ? 'text-gray-900 font-bold' : isCompleted ? 'text-amber-700' : 'text-gray-400'
+                } hidden sm:block`}>
+                  {step}
+                </span>
               </div>
-              <span className="text-xs mt-1 text-center hidden sm:block">{step}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Configurador */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Paso 1: Tamaño */}
-          {currentStep === 0 && (
-            <SizeSelector options={options} setOptions={setOptions} />
-          )}
+      {/* Grilla de Distribución */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        
+        {/* Columna Izquierda: Panel Dinámico del Selector */}
+        <div className="lg:col-span-2 bg-white border border-gray-100 rounded-3xl p-6 md:p-8 shadow-sm min-h-[450px] flex flex-col justify-between">
           
-          {/* Paso 2: Tipo de entrega */}
-          {currentStep === 1 && (
-            <FinishTypeSelector finishType={finishType} setFinishType={handleFinishTypeChange} />
-          )}
-          
-          {/* Paso 3: Personalización */}
-          {currentStep === 2 && (
-            <OptionsPanel options={options} setOptions={setOptions} finishType={finishType} />
-          )}
-          
-          {/* Paso 4: Plano interactivo */}
-          {currentStep === 3 && (
-            <div>
-              <h3 className="text-2xl font-bold mb-4">Diseñá la distribución</h3>
-              <p className="text-gray-600 mb-4">
-                Arrastrá las habitaciones, redimensionalas y organizá los espacios a tu gusto.
-              </p>
-              <InteractiveFloorPlan options={options} />
-            </div>
-          )}
-          
-          {/* Paso 5: Resumen */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold">Resumen de tu cabaña</h3>
-              <div className="bg-gray-50 p-6 rounded-lg space-y-3">
-                <p><strong>📐 Tamaño:</strong> {options.size === 'custom' && options.customSize ? `6x${options.customSize} (${6 * options.customSize} m²)` : options.size}</p>
-                <p><strong>🔨 Tipo de entrega:</strong> {finishType === 'llave_en_mano' ? 'Llave en mano 🏠' : 'Semiterminada 🔨'}</p>
-                {options.extras.includes('platea_hormigon') && <p><strong>🏗️ Platea de hormigón:</strong> Incluida</p>}
-                {options.extras.includes('pozo_negro') && <p><strong>💧 Pozo negro:</strong> Incluido</p>}
-                {options.extras.includes('alero') && options.aleroMetros && options.aleroMetros > 0 && (
-                  <p><strong>🌿 Alero:</strong> {options.aleroMetros} metros</p>
-                )}
-                {options.extras.includes('caminador_con_alero') && options.caminadorMetros && options.caminadorMetros > 0 && (
-                  <p><strong>🚶 Caminador con alero:</strong> {options.caminadorMetros} metros</p>
-                )}
-                {options.extras.includes('piso_ceramico') && <p><strong>🪟 Piso cerámico:</strong> En lugar de madera</p>}
-                {options.extras.includes('banio_semiterminada') && <p><strong>🚽 Baño completo:</strong> Incluido</p>}
-                {options.extras.includes('cocina_extra') && <p><strong>🍳 Cocina completa:</strong> Incluida</p>}
-              </div>
-            </div>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between pt-8">
-            {currentStep > 0 && (
-              <button onClick={handlePrev} className="btn-secondary">
-                Anterior
-              </button>
+          <div className="w-full">
+            {/* Paso 1: Tamaño */}
+            {currentStep === 0 && (
+              <SizeSelector options={options} setOptions={setOptions} />
             )}
+            
+            {/* Paso 2: Tipo de entrega */}
+            {currentStep === 1 && (
+              <FinishTypeSelector finishType={finishType} setFinishType={handleFinishTypeChange} />
+            )}
+            
+            {/* Paso 3: Personalización */}
+            {currentStep === 2 && (
+              <OptionsPanel options={options} setOptions={setOptions} finishType={finishType} />
+            )}
+            
+            {/* Paso 4: Plano interactivo */}
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <div className="border-b border-gray-100 pb-4">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    🛠️ Diseñá la distribución interna
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Organizá y visualizá los metros cuadrados asignando estratégicamente tus espacios.
+                  </p>
+                </div>
+                <InteractiveFloorPlan options={options} />
+              </div>
+            )}
+            
+            {/* Paso 5: Resumen Final Empaquetado */}
+            {currentStep === 4 && (
+              <div className="space-y-6">
+                <div className="border-b border-gray-100 pb-4">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-amber-600" /> Resumen de Configuración Técnica
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Revisá la ficha técnica estructurada de tu cabaña antes de descargar o enviar tu presupuesto.
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                    <span className="text-sm text-gray-500 font-medium">Dimensiones base:</span>
+                    <span className="text-sm font-bold text-gray-900 bg-white px-2.5 py-1 rounded-lg shadow-sm border">
+                      {options.size === 'custom' && options.customSize ? `6x${options.customSize} (${6 * options.customSize}m²)` : `${options.size} (${prices.area || 0}m²)`}
+                    </span>
+                  </div>
+                  
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                    <span className="text-sm text-gray-500 font-medium">Modalidad de obra:</span>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm border ${
+                      finishType === 'llave_en_mano' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-blue-50 text-blue-700 border-blue-100'
+                    }`}>
+                      {finishType === 'llave_en_mano' ? 'Llave en Mano 🏠' : 'Semiterminada 🔨'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Listado limpio de opcionales seleccionados */}
+                <div className="bg-amber-500/[0.02] border border-amber-500/10 p-5 rounded-2xl space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800">Equipamiento & Componentes Extra</h4>
+                  <div className="divide-y divide-gray-100/70 text-sm text-gray-700">
+                    {options.extras.length === 0 && (!options.aleroMetros && !options.caminadorMetros) ? (
+                      <p className="text-gray-400 italic text-xs py-2">No has añadido componentes adicionales.</p>
+                    ) : (
+                      <>
+                        {options.extras.includes('platea_hormigon') && <div className="py-2.5 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Platea de fundación en hormigón armada</div>}
+                        {options.extras.includes('pozo_negro') && <div className="py-2.5 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Construcción de pozo séptico/negro en terreno</div>}
+                        {options.extras.includes('alero') && options.aleroMetros && options.aleroMetros > 0 ? (
+                          <div className="py-2.5 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Alero frontal exterior techado: <strong className="text-gray-900 ml-auto">{options.aleroMetros} Mts</strong></div>
+                        ) : null}
+                        {options.extras.includes('caminador_con_alero') && options.caminadorMetros && options.caminadorMetros > 0 ? (
+                          <div className="py-2.5 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Deck caminador perimetral con alero: <strong className="text-gray-900 ml-auto">{options.caminadorMetros} Mts</strong></div>
+                        ) : null}
+                        {options.extras.includes('piso_ceramico') && <div className="py-2.5 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Reemplazo a pavimento cerámico de alto tránsito</div>}
+                        {options.extras.includes('banio_semiterminada') && <div className="py-2.5 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Kit completo de loza sanitaria e instalación de baño</div>}
+                        {options.extras.includes('cocina_extra') && <div className="py-2.5 flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> Amoblamiento integral de cocina premium</div>}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Botones de Navegación del Flujo de Compra */}
+          <div className="flex items-center justify-between pt-8 border-t border-gray-100 mt-8">
+            {currentStep > 0 ? (
+              <button 
+                onClick={handlePrev} 
+                className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-200 hover:border-gray-300 rounded-xl text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all"
+              >
+                <ArrowLeft className="w-4 h-4" /> Anterior
+              </button>
+            ) : <div />}
+            
             {currentStep < steps.length - 1 ? (
-              <button onClick={handleNext} className="btn-primary ml-auto">
-                Siguiente
+              <button 
+                onClick={handleNext} 
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl transition-all shadow-sm ml-auto"
+              >
+                Siguiente <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
-              <div className="flex gap-4 ml-auto">
-                <button onClick={handlePDF} className="flex items-center gap-2 bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition">
-                  <Download size={18} />
-                  Descargar PDF
+              <div className="flex flex-wrap gap-3 ml-auto w-full sm:w-auto justify-end">
+                <button 
+                  onClick={handlePDF} 
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-xl transition-all w-full sm:w-auto"
+                >
+                  <Download className="w-4 h-4" /> Ficha PDF
                 </button>
-                <button onClick={handleWhatsApp} className="flex items-center gap-2 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition">
-                  <Send size={18} />
-                  Enviar por WhatsApp
+                <button 
+                  onClick={handleWhatsApp} 
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-emerald-900/10 w-full sm:w-auto"
+                >
+                  <Send className="w-4 h-4" /> Enviar Presupuesto
                 </button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Price Panel */}
-        <div className="lg:col-span-1">
+        {/* Columna Derecha: Tarjeta Lateral de Precios Dinámica */}
+        <div className="lg:col-span-1 lg:sticky lg:top-24">
           <PriceBreakDown
             prices={prices}
             totalUSD={totalUSD}
@@ -174,6 +254,7 @@ export default function ConfiguratorWizard() {
             size={options.size === 'custom' && options.customSize ? `6x${options.customSize}` : options.size}
           />
         </div>
+        
       </div>
     </div>
   )
