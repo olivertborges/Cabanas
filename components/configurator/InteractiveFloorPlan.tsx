@@ -270,36 +270,34 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
           </div>
         ) : (
           
-          /* 🌲 RENDER VIVO 3D CON ENTORNO NATURAL REFORZADO */
+          /* 🌲 RENDER VIVO 3D CORREGIDO Y BLINDADO */
           <div className="w-full h-full min-h-[380px] sm:min-h-[540px] relative">
             <Canvas camera={{ position: [cabinWidth / 2, cabinWidth * 0.8, cabinLength * 1.5], fov: 45 }} shadows>
               <Sky sunPosition={[80, 25, 60]} inclination={0.6} azimuth={0.25} />
               <ambientLight intensity={showRoof3D ? 0.75 : 1.3} />
               <directionalLight position={[20, 40, 20]} intensity={1.5} castShadow shadow-mapSize={[1024, 1024]} />
               
-              {/* 🟢 1. TERRENO INFINITO DE PASTO (Elimina por completo el fondo negro) */}
+              {/* TERRENO INFINITO DE PASTO */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
                 <planeGeometry args={[120, 120]} />
-                <meshStandardMaterial color="#1b4314" roughness={0.9} roughnessMap={null} />
+                <meshStandardMaterial color="#1b4314" roughness={0.9} />
               </mesh>
 
-              {/* 🌳 2. ANILLO DE NATURALEZA / BOSQUE PERIMETRAL EN EL HORIZONTE */}
+              {/* ANILLO DE NATURALEZA / BOSQUE PERIMETRAL EN EL HORIZONTE */}
               <group position={[cabinWidth / 2, 0, cabinLength / 2]}>
                 {[...Array(24)].map((_, i) => {
                   const angle = (i / 24) * Math.PI * 2
-                  const radius = 22 + Math.random() * 5 // Distancia al azar para simular bosque real
+                  const radius = 22 + Math.random() * 5
                   const tx = Math.cos(angle) * radius
                   const tz = Math.sin(angle) * radius
                   const treeHeight = 3.5 + Math.random() * 2.5
 
                   return (
                     <group key={`tree-${i}`} position={[tx, 0, tz]}>
-                      {/* Tronco */}
                       <mesh position={[0, treeHeight * 0.15, 0]}>
                         <cylinderGeometry args={[0.15, 0.25, treeHeight * 0.3]} />
                         <meshStandardMaterial color="#3f2305" roughness={0.9} />
                       </mesh>
-                      {/* Follaje Pino Rústico */}
                       <mesh position={[0, treeHeight * 0.6, 0]} castShadow>
                         <coneGeometry args={[1.2, treeHeight * 0.8, 5]} />
                         <meshStandardMaterial color={i % 2 === 0 ? '#14532d' : '#166534'} roughness={0.8} />
@@ -318,7 +316,6 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   </mesh>
                 ) : (
                   <group>
-                    {/* Pilotes perimetrales */}
                     {[0.2, cabinWidth - 0.2].map(x => 
                       [0.2, cabinLength - 0.2].map((z, idx) => (
                         <mesh key={`pil-${x}-${z}-${idx}`} position={[x, 0.25, z]} castShadow>
@@ -337,7 +334,6 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                       <boxGeometry args={[cabinWidth + 1.6, 0.04, cabinLength + 1.6]} />
                       <meshStandardMaterial color="#451a03" roughness={0.9} />
                     </mesh>
-                    {/* Barandas */}
                     <group position={[cabinWidth / 2, 0.4, cabinLength / 2]}>
                       <mesh position={[0, 0, -(cabinLength + 1.6) / 2]}><boxGeometry args={[cabinWidth + 1.6, 0.03, 0.03]} /><meshStandardMaterial color="#2d1606" /></mesh>
                       <mesh position={[0, 0, (cabinLength + 1.6) / 2]}><boxGeometry args={[cabinWidth + 1.6, 0.03, 0.03]} /><meshStandardMaterial color="#2d1606" /></mesh>
@@ -351,7 +347,7 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                   <meshStandardMaterial color={floorFinish === 'Madera' ? '#854d0e' : '#cbd5e1'} roughness={floorFinish === 'Madera' ? 0.6 : 0.3} />
                 </mesh>
 
-                {/* MUROS EXTRUIDOS */}
+                {/* 🧱 MUROS EXTRUIDOS COMPLETAMENTE COMPATIBLES CON THREE.JS */}
                 <group position={[0, baseType === 'Pilotes' ? 0.52 : 0.22, 0]}>
                   {rooms.map(r => {
                     const rw = r.max.x - r.min.x
@@ -360,12 +356,12 @@ export default function InteractiveFloorPlan({ options }: { options?: any }) {
                     const cz = r.min.y + rl / 2
 
                     return (
-                      <g key={`3d-w-${r.id}`}>
+                      <group key={`3d-w-group-${r.id}`}>
                         <mesh position={[cx, 1.3, r.min.y]} castShadow><boxGeometry args={[rw, 2.6, 0.12]} /><meshStandardMaterial color={woodColor} roughness={0.65} /></mesh>
                         <mesh position={[cx, 1.3, r.max.y]} castShadow><boxGeometry args={[rw, 2.6, 0.12]} /><meshStandardMaterial color={woodColor} roughness={0.65} /></mesh>
                         <mesh position={[r.min.x, 1.3, cz]} castShadow><boxGeometry args={[0.12, 2.6, rl]} /><meshStandardMaterial color={woodColor} roughness={0.65} /></mesh>
                         <mesh position={[r.max.x, 1.3, cz]} castShadow><boxGeometry args={[0.12, 2.6, rl]} /><meshStandardMaterial color={woodColor} roughness={0.65} /></mesh>
-                      </g>
+                      </group>
                     )
                   })}
                 </group>
