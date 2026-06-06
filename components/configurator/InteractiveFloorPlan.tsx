@@ -28,7 +28,8 @@ const ROOM_TEMPLATES = {
   Baño: { name: 'Baño Completo', color: '#fbcfe8', stroke: '#9d174d', icon: '🚽' },
 }
 
-export default function CabinTrueArchitect() {
+export default function InteractiveFloorPlan({ options }: { options?: any }) {
+
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   const [selectedTarget, setSelectedTarget] = useState<{ type: 'room' | 'porch'; id: string }>({ type: 'room', id: 'r1' })
 
