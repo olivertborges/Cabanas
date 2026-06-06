@@ -53,7 +53,7 @@ const ROOF_COLORS = [
 export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanProps) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   
-  // Guardamos como string para el comportamiento fluido del teclado al borrar
+  // Estados para el Caminador y Alero
   const [walkwayWidth, setWalkwayWidth] = useState<string>('1.2')
   const [eaveLength, setEaveLength] = useState<string>('0.8')
   const [hasWalkway, setHasWalkway] = useState<boolean>(true)
@@ -86,7 +86,6 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     if (rooms.length === 0) return { minX: 0, maxX: 6, minY: 0, maxY: 6, w: 6, l: 6 }
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
     rooms.forEach(r => {
-      // Validamos que si el input está vacío momentáneamente, no rompa el bounding box
       const rw = typeof r.w === 'string' ? 0 : r.w
       const rl = typeof r.l === 'string' ? 0 : r.l
       if (r.x < minX) minX = r.x
@@ -97,8 +96,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     return { minX, maxX, minY, maxY, w: maxX - minX, l: maxY - minY }
   }, [rooms])
 
-  // --- 📐 CORRECCIÓN CRÍTICA DE TIPADO PARA RENDER 3D ---
-  // Si borrás el input por completo, asume 0 temporalmente para que no desaparezca la estructura
+  // --- TRADUCCIÓN SEGURA DE VALORES ---
   const numWalkway = useMemo(() => {
     const val = parseFloat(walkwayWidth)
     return isNaN(val) ? 0 : val
@@ -209,12 +207,11 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
   const handleNumericPropChange = (id: string, field: 'w' | 'l', textValue: string) => {
     setRooms(prev => prev.map(r => {
       if (r.id !== id) return r
-      // Permite dejar la caja vacía en el estado temporalmente para que borres libremente
       return { ...r, [field]: textValue === '' ? '' : (isNaN(parseFloat(textValue)) ? r[field] : parseFloat(textValue)) }
     }))
   }
 
-  // --- 📐 PARÁMETROS ARQUITECTÓNICOS RESISTENTES ---
+  // --- 📐 CONFIGURACIÓN CONSTRUCTIVA ---
   const floorThickness = 0.15 
   const hPilotes = 0.80       
   const floorY = baseType === 'Pilotes' ? hPilotes : 0.20 
@@ -253,7 +250,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
       <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 shrink-0 max-h-[520px] xl:max-h-[740px] overflow-y-auto">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
-            Estudio Arquitectura v4.4
+            Estudio Arquitectura v4.5
           </span>
           <h2 className="text-lg font-black mt-1">Modelador de Cabañas</h2>
         </div>
@@ -294,16 +291,16 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         </div>
 
-        {/* PASILLOS Y ENTORNO */}
+        {/* 🛠️ CONTROLES CORREGIDOS (CAMINADOR Y ALERO VISIBLES) */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2.5">
-          <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">📏 Parámetros Libres (Permite borrar):</p>
+          <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">📏 Entorno y Estructura:</p>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[10px] text-slate-400 block mb-0.5">Ancho Deck (m):</label>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Ancho Caminador (m):</label>
               <input type="text" value={walkwayWidth} onChange={(e) => setWalkwayWidth(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-xs text-center font-mono font-bold text-amber-400 outline-none" />
             </div>
             <div>
-              <label className="text-[10px] text-slate-400 block mb-0.5">Vuelo Alero (m):</label>
+              <label className="text-[10px] text-slate-400 block mb-0.5">Largo Alero (m):</label>
               <input type="text" value={eaveLength} onChange={(e) => setEaveLength(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-1 text-xs text-center font-mono font-bold text-sky-400 outline-none" />
             </div>
           </div>
@@ -459,7 +456,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   </mesh>
                 )}
 
-                {/* DECK DE MADERA (Caminador recuperado) */}
+                {/* DECK DE MADERA (Caminador) */}
                 {hasWalkway && numWalkway > 0 && (
                   <group>
                     <mesh position={[boundingBox.minX + boundingBox.w / 2, floorThickness / 2, boundingBox.minY + boundingBox.l / 2]} receiveShadow>
@@ -543,7 +540,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   })}
                 </group>
 
-                {/* 🏠 TECHO ADAPTABLE (Alero recuperado de forma segura) */}
+                {/* 🏠 TECHO ADAPTABLE (Alero) */}
                 <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
                   <mesh position={[-boundingBox.w / 4, 0.70, 0]} rotation={[0, 0, 0.32]} castShadow>
                     <boxGeometry args={[boundingBox.w / 1.8 + numEave, 0.06, boundingBox.l + numEave * 2]} />
