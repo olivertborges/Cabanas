@@ -28,9 +28,8 @@ interface DraggableItem {
   color: string
 }
 
-// Interfaz para recibir las props del Wizard sin errores de compilación
 interface InteractiveFloorPlanProps {
-  options?: any // Acepta las opciones de configuración del Wizard
+  options?: any 
 }
 
 const WALL_COLORS = [
@@ -54,7 +53,7 @@ const ROOF_COLORS = [
 export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanProps) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   
-  // Extensiones holgadas y naturales
+  // Guardamos como string para el comportamiento fluido del teclado al borrar
   const [walkwayWidth, setWalkwayWidth] = useState<string>('1.2')
   const [eaveLength, setEaveLength] = useState<string>('0.8')
   const [hasWalkway, setHasWalkway] = useState<boolean>(true)
@@ -67,7 +66,6 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     { id: 'r2', name: 'Ala en L / Cocina', x: 6.0, y: 0, w: 3.0, l: 3.5, color2D: '#fed7aa' }
   ])
 
-  // Aumentamos levemente el grosor (l) visual en 2D para agarrar mejor los objetos con el mouse
   const [placedItems, setPlacedItems] = useState<DraggableItem[]>([
     { id: 'i1', type: 'puerta', x: 2.0, y: 0.0, w: 1.0, l: 0.3, label: '🚪 Puerta Princ.', color: '#ef4444' },
     { id: 'i2', type: 'ventana', x: 4.5, y: 0.0, w: 1.4, l: 0.3, label: '🪟 Ventana', color: '#38bdf8' },
@@ -88,13 +86,28 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     if (rooms.length === 0) return { minX: 0, maxX: 6, minY: 0, maxY: 6, w: 6, l: 6 }
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
     rooms.forEach(r => {
+      // Validamos que si el input está vacío momentáneamente, no rompa el bounding box
+      const rw = typeof r.w === 'string' ? 0 : r.w
+      const rl = typeof r.l === 'string' ? 0 : r.l
       if (r.x < minX) minX = r.x
-      if (r.x + r.w > maxX) maxX = r.x + r.w
+      if (r.x + rw > maxX) maxX = r.x + rw
       if (r.y < minY) minY = r.y
-      if (r.y + r.l > maxY) maxY = r.y + r.l
+      if (r.y + rl > maxY) maxY = r.y + rl
     })
     return { minX, maxX, minY, maxY, w: maxX - minX, l: maxY - minY }
   }, [rooms])
+
+  // --- 📐 CORRECCIÓN CRÍTICA DE TIPADO PARA RENDER 3D ---
+  // Si borrás el input por completo, asume 0 temporalmente para que no desaparezca la estructura
+  const numWalkway = useMemo(() => {
+    const val = parseFloat(walkwayWidth)
+    return isNaN(val) ? 0 : val
+  }, [walkwayWidth])
+
+  const numEave = useMemo(() => {
+    const val = parseFloat(eaveLength)
+    return isNaN(val) ? 0 : val
+  }, [eaveLength])
 
   const viewBounds = useMemo(() => {
     const margin = 4.0
@@ -106,7 +119,6 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     }
   }, [boundingBox])
 
-  // --- TRADUCTOR DE COORDENADAS (Suave y sin tirones) ---
   const getCoordinates = (e: any) => {
     if (!svgRef.current) return null
     const rect = svgRef.current.getBoundingClientRect()
@@ -197,15 +209,12 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
   const handleNumericPropChange = (id: string, field: 'w' | 'l', textValue: string) => {
     setRooms(prev => prev.map(r => {
       if (r.id !== id) return r
-      const parsed = parseFloat(textValue)
-      return { ...r, [field]: textValue === '' ? '' : (isNaN(parsed) ? r[field] : parsed) }
+      // Permite dejar la caja vacía en el estado temporalmente para que borres libremente
+      return { ...r, [field]: textValue === '' ? '' : (isNaN(parseFloat(textValue)) ? r[field] : parseFloat(textValue)) }
     }))
   }
 
-  // --- 📐 PARÁMETROS ARQUITECTÓNICOS ---
-  const numWalkway = parseFloat(walkwayWidth) || 0
-  const numEave = parseFloat(eaveLength) || 0
-
+  // --- 📐 PARÁMETROS ARQUITECTÓNICOS RESISTENTES ---
   const floorThickness = 0.15 
   const hPilotes = 0.80       
   const floorY = baseType === 'Pilotes' ? hPilotes : 0.20 
@@ -214,7 +223,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
 
   const generateBalusters = useMemo(() => {
     const list: Array<{ pos: [number, number, number] }> = []
-    if (!hasWalkway) return list
+    if (!hasWalkway || numWalkway <= 0) return list
     const spacing = 0.40 
     
     const eW = boundingBox.w + numWalkway * 2
@@ -244,7 +253,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
       <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 shrink-0 max-h-[520px] xl:max-h-[740px] overflow-y-auto">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
-            Estudio Arquitectura v4.3
+            Estudio Arquitectura v4.4
           </span>
           <h2 className="text-lg font-black mt-1">Modelador de Cabañas</h2>
         </div>
@@ -328,7 +337,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
 
             {selectedRoomObj && (
               <div className="bg-slate-950 p-2.5 rounded border border-slate-700 space-y-2 mt-2">
-                <p className="text-[10px] font-black text-emerald-400">✏️ Propiedades (Permite borrar e ingresar):</p>
+                <p className="text-[10px] font-black text-emerald-400">✏️ Propiedades:</p>
                 <div>
                   <label className="text-[9px] text-slate-400">Nombre:</label>
                   <input type="text" value={selectedRoomObj.name} onChange={(e) => setRooms(prev => prev.map(r => r.id === selectedId ? {...r, name: e.target.value} : r))} className="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs text-white outline-none" />
@@ -344,7 +353,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   </div>
                 </div>
                 <button onClick={() => { setRooms(prev => prev.filter(r => r.id !== selectedId)); setPlacedItems(prev => prev.filter(i => i.id !== selectedId)); setSelectedId(null); }} className="w-full text-center bg-red-950 hover:bg-red-900 border border-red-800 text-[10px] font-bold text-red-300 p-1 rounded mt-1">
-                  🗑️ Eliminar Elemento Seleccionado
+                  🗑️ Eliminar Elemento
                 </button>
               </div>
             )}
@@ -368,7 +377,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
               onTouchEnd={() => setIsDragging(false)}
               className="w-full h-full max-h-[520px] bg-slate-900 rounded-xl border border-slate-800 shadow-xl touch-none"
             >
-              {hasWalkway && (
+              {hasWalkway && numWalkway > 0 && (
                 <rect 
                   x={(boundingBox.minX - numWalkway) * scale} 
                   y={(boundingBox.minY - numWalkway) * scale} 
@@ -381,9 +390,11 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
               {/* Habitaciones */}
               {rooms.map(r => {
                 const isSel = r.id === selectedId && selectedType === 'room'
+                const rw = typeof r.w === 'string' ? 0 : r.w
+                const rl = typeof r.l === 'string' ? 0 : r.l
                 return (
                   <g key={r.id} className="cursor-move" onMouseDown={(e) => handleDragStart(r.id, 'room', e)} onTouchStart={(e) => handleDragStart(r.id, 'room', e)}>
-                    <rect x={r.x * scale} y={r.y * scale} width={r.w * scale} height={r.l * scale} fill={r.color2D} fillOpacity={isSel ? "0.35" : "0.15"} stroke={isSel ? "#10b981" : "#38bdf8"} strokeWidth={isSel ? 3 : 1.5} rx="1" />
+                    <rect x={r.x * scale} y={r.y * scale} width={rw * scale} height={rl * scale} fill={r.color2D} fillOpacity={isSel ? "0.35" : "0.15"} stroke={isSel ? "#10b981" : "#38bdf8"} strokeWidth={isSel ? 3 : 1.5} rx="1" />
                     <text x={(r.x + 0.15) * scale} y={(r.y + 0.4) * scale} fill="white" className="text-[10px] font-black pointer-events-none select-none">{r.name}</text>
                   </g>
                 )
@@ -403,7 +414,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         ) : (
           
-          /* 🌲 RENDER 3D PERFECCIONADO */
+          /* 🌲 RENDER 3D PERFECCIONADO Y SEGURO */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, hMuros + 5, boundingBox.minY + boundingBox.l + 6], fov: 42 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
@@ -420,18 +431,23 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                 {/* PILOTES ESTRUCTURALES */}
                 {baseType === 'Pilotes' && (
                   <group position={[0, -floorY, 0]}>
-                    {rooms.map((r, rIdx) => (
-                      <group key={`p-group-${r.id}-${rIdx}`}>
-                        {[0.15, r.w / 2, r.w - 0.15].map(xOffset =>
-                          [0.15, r.l / 2, r.l - 0.15].map((zOffset, idx) => (
-                            <mesh key={`p-room-${r.id}-${xOffset}-${zOffset}-${idx}`} position={[r.x + xOffset, floorY / 2, r.y + zOffset]} castShadow>
-                              <cylinderGeometry args={[0.10, 0.11, floorY]} />
-                              <meshStandardMaterial color="#2d1606" roughness={0.85} />
-                            </mesh>
-                          ))
-                        )}
-                      </group>
-                    ))}
+                    {rooms.map((r, rIdx) => {
+                      const rw = typeof r.w === 'string' ? 0 : r.w
+                      const rl = typeof r.l === 'string' ? 0 : r.l
+                      if(rw <= 0 || rl <= 0) return null;
+                      return (
+                        <group key={`p-group-${r.id}-${rIdx}`}>
+                          {[0.15, rw / 2, rw - 0.15].map(xOffset =>
+                            [0.15, rl / 2, rl - 0.15].map((zOffset, idx) => (
+                              <mesh key={`p-room-${r.id}-${xOffset}-${zOffset}-${idx}`} position={[r.x + xOffset, floorY / 2, r.y + zOffset]} castShadow>
+                                <cylinderGeometry args={[0.10, 0.11, floorY]} />
+                                <meshStandardMaterial color="#2d1606" roughness={0.85} />
+                              </mesh>
+                            ))
+                          )}
+                        </group>
+                      )
+                    })}
                   </group>
                 )}
 
@@ -443,8 +459,8 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   </mesh>
                 )}
 
-                {/* DECK Y PASAMANO */}
-                {hasWalkway && (
+                {/* DECK DE MADERA (Caminador recuperado) */}
+                {hasWalkway && numWalkway > 0 && (
                   <group>
                     <mesh position={[boundingBox.minX + boundingBox.w / 2, floorThickness / 2, boundingBox.minY + boundingBox.l / 2]} receiveShadow>
                       <boxGeometry args={[boundingBox.w + numWalkway * 2, floorThickness, boundingBox.l + numWalkway * 2]} />
@@ -471,23 +487,33 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                 )}
 
                 {/* SUELOS INTERIORES */}
-                {rooms.map(r => (
-                  <mesh key={`floor-3d-${r.id}`} position={[r.x + r.w / 2, floorThickness / 2 + 0.005, r.y + r.l / 2]} receiveShadow>
-                    <boxGeometry args={[r.w - 0.02, floorThickness, r.l - 0.02]} />
-                    <meshStandardMaterial color="#5c2d0c" roughness={0.7} />
-                  </mesh>
-                ))}
+                {rooms.map(r => {
+                  const rw = typeof r.w === 'string' ? 0 : r.w
+                  const rl = typeof r.l === 'string' ? 0 : r.l
+                  if(rw <= 0 || rl <= 0) return null;
+                  return (
+                    <mesh key={`floor-3d-${r.id}`} position={[r.x + rw / 2, floorThickness / 2 + 0.005, r.y + rl / 2]} receiveShadow>
+                      <boxGeometry args={[rw - 0.02, floorThickness, rl - 0.02]} />
+                      <meshStandardMaterial color="#5c2d0c" roughness={0.7} />
+                    </mesh>
+                  )
+                })}
 
                 {/* PAREDES */}
                 <group position={[0, floorThickness, 0]}>
-                  {rooms.map(r => (
-                    <group key={`walls-3d-${r.id}`}>
-                      <mesh position={[r.x + r.w / 2, hMuros / 2, r.y]} castShadow><boxGeometry args={[r.w, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
-                      <mesh position={[r.x + r.w / 2, hMuros / 2, r.y + r.l]} castShadow><boxGeometry args={[r.w, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
-                      <mesh position={[r.x, hMuros / 2, r.y + r.l / 2]} castShadow><boxGeometry args={[0.12, hMuros, r.l]} /><meshStandardMaterial color={woodColor} /></mesh>
-                      <mesh position={[r.x + r.w, hMuros / 2, r.y + r.l / 2]} castShadow><boxGeometry args={[0.12, hMuros, r.l]} /><meshStandardMaterial color={woodColor} /></mesh>
-                    </group>
-                  ))}
+                  {rooms.map(r => {
+                    const rw = typeof r.w === 'string' ? 0 : r.w
+                    const rl = typeof r.l === 'string' ? 0 : r.l
+                    if(rw <= 0 || rl <= 0) return null;
+                    return (
+                      <group key={`walls-3d-${r.id}`}>
+                        <mesh position={[r.x + rw / 2, hMuros / 2, r.y]} castShadow><boxGeometry args={[rw, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
+                        <mesh position={[r.x + rw / 2, hMuros / 2, r.y + rl]} castShadow><boxGeometry args={[rw, hMuros, 0.12]} /><meshStandardMaterial color={woodColor} /></mesh>
+                        <mesh position={[r.x, hMuros / 2, r.y + rl / 2]} castShadow><boxGeometry args={[0.12, hMuros, rl]} /><meshStandardMaterial color={woodColor} /></mesh>
+                        <mesh position={[r.x + rw, hMuros / 2, r.y + rl / 2]} castShadow><boxGeometry args={[0.12, hMuros, rl]} /><meshStandardMaterial color={woodColor} /></mesh>
+                      </group>
+                    )
+                  })}
                 </group>
 
                 {/* PUERTAS, VENTANAS Y MUEBLES */}
@@ -517,7 +543,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   })}
                 </group>
 
-                {/* 🏠 TECHO ADAPTABLE MÁS ALTO */}
+                {/* 🏠 TECHO ADAPTABLE (Alero recuperado de forma segura) */}
                 <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
                   <mesh position={[-boundingBox.w / 4, 0.70, 0]} rotation={[0, 0, 0.32]} castShadow>
                     <boxGeometry args={[boundingBox.w / 1.8 + numEave, 0.06, boundingBox.l + numEave * 2]} />
