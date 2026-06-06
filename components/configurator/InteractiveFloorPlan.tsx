@@ -1,611 +1,349 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Grid, Center } from '@react-three/drei'
-import { ConfigOptions } from '../../utils/priceCalculator'
+import { OrbitControls, Grid, Sky, Center } from '@react-three/drei'
+import * as THREE from 'three'
+
+interface Point2D { x: number; y: number }
+
+interface WallItem {
+  id: string
+  type: 'puerta' | 'ventana'
+  x: number 
+  y: number
+}
 
 interface Room {
   id: string
   name: string
-  x: number
-  y: number
-  width: number
-  height: number
-  color: string
+  type: 'Dormitorio' | 'Baño' | 'Cocina' | 'Living'
+  vertices: Point2D[]
+  items: WallItem[]
 }
 
-// Reemplaza esto en tu archivo:
-interface InteractiveFloorPlanProps {
-  options: {
-    size: string
-    customSize?: number
-    finishType?: string
-    extras?: any[]
-  }
-  onUpdate?: (rooms: Room[]) => void
+const ROOM_TEMPLATES = {
+  Living: { name: 'Living Cocina', color: '#fef08a', stroke: '#a16207', icon: '🛋️🍳' },
+  Dormitorio: { name: 'Dormitorio', color: '#bfdbfe', stroke: '#1e40af', icon: '🛏️' },
+  Baño: { name: 'Baño Completo', color: '#fbcfe8', stroke: '#9d174d', icon: '🚽' },
 }
 
-
-const roomColors: Record<string, string> = {
-  'Dormitorio': '#86efac',
-  'Baño': '#fef08a',
-  'Cocina': '#fbcfe8',
-  'Living': '#bae6fd',
-  'Comedor': '#ddd6fe',
-  'Pasillo': '#e5e5e5',
-}
-
-const roomTypes = [
-  { name: 'Dormitorio', icon: '🛏️', defaultSize: { width: 3, height: 3 } },
-  { name: 'Baño', icon: '🚽', defaultSize: { width: 2, height: 2 } },
-  { name: 'Cocina', icon: '🍳', defaultSize: { width: 3, height: 2.5 } },
-  { name: 'Living', icon: '🛋️', defaultSize: { width: 4, height: 3 } },
-  { name: 'Comedor', icon: '🍽️', defaultSize: { width: 3, height: 2.5 } },
-  { name: 'Pasillo', icon: '🚪', defaultSize: { width: 1.5, height: 3 } },
-]
-
-// Costos estimados de construcción por m² según la complejidad técnica del ambiente
-const costPerM2: Record<string, number> = {
-  'Dormitorio': 450,
-  'Baño': 850,       // Más caro por instalaciones sanitarias y revestimientos
-  'Cocina': 750,     // Red de agua, gas y mesadas
-  'Living': 400,
-  'Comedor': 400,
-  'Pasillo': 350,
-}
-
-export default function InteractiveFloorPlan({ options, onUpdate }: InteractiveFloorPlanProps) {
+export default function CabinTrueArchitect() {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
+  const [selectedTarget, setSelectedTarget] = useState<{ type: 'room' | 'porch'; id: string }>({ type: 'room', id: 'r1' })
+
+  // Ambientes iniciales moldeables con nodos
   const [rooms, setRooms] = useState<Room[]>([
-    { id: '1', name: 'Dormitorio 1', x: 0, y: 0, width: 3, height: 3, color: roomColors['Dormitorio'] },
-    { id: '2', name: 'Baño 1', x: 3.5, y: 0, width: 2, height: 2, color: roomColors['Baño'] },
-    { id: '3', name: 'Living', x: 0, y: 3.5, width: 3.5, height: 3, color: roomColors['Living'] },
-    { id: '4', name: 'Cocina', x: 3.5, y: 3.5, width: 2.5, height: 2.5, color: roomColors['Cocina'] },
+    {
+      id: 'r1',
+      name: 'Espacio Principal',
+      type: 'Living',
+      vertices: [{ x: 2, y: 2 }, { x: 7, y: 2 }, { x: 7, y: 6 }, { x: 2, y: 6 }],
+      items: [
+        { id: 'p1', type: 'puerta', x: 4.5, y: 6 },
+        { id: 'v1', type: 'ventana', x: 7, y: 4 }
+      ]
+    }
   ])
-  
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [resizing, setResizing] = useState<string | null>(null)
-  const [resizeEdge, setResizeEdge] = useState<string | null>(null)
-  
-  const getCabinLength = (): number => {
-    if (options.size === 'custom' && options.customSize) {
-      return options.customSize
+
+  // Cajas de texto editables
+  const [inputWidth, setInputWidth] = useState<string>('5.0')
+  const [inputLength, setInputLength] = useState<string>('4.0')
+
+  const [dragInfo, setDragInfo] = useState<{
+    type: 'vertex' | 'room-center' | 'porch-vertex' | 'porch-center' | 'item'
+    id: string
+    index?: number
+    itemId?: string
+    startX?: number
+    startY?: number
+    originalVertices?: Point2D[]
+    originalItemPos?: { x: number; y: number }
+  } | null>(null)
+
+  const svgRef = useRef<SVGSVGElement>(null)
+  const scale = 40
+
+  // --- 📐 CALCULADORA DE BBOX PARA TRANSFORMAR EN METROS REALES ---
+  const activeStructureData = useMemo(() => {
+    if (selectedTarget.type === 'room') {
+      const room = rooms.find(r => r.id === selectedTarget.id)
+      if (!room || room.vertices.length === 0) return null
+      const xs = room.vertices.map(v => v.x), ys = room.vertices.map(v => v.y)
+      const minX = Math.min(...xs), maxX = Math.max(...xs)
+      const minY = Math.min(...ys), maxY = Math.max(...ys)
+      return { name: room.name, width: maxX - minX, length: maxY - minY, minX, minY }
+    } else return null
+  }, [selectedTarget, rooms])
+
+  useEffect(() => {
+    if (activeStructureData) {
+      setInputWidth(activeStructureData.width.toFixed(1))
+      setInputLength(activeStructureData.length.toFixed(1))
     }
-    const sizes: Record<string, number> = {
-      '6x3': 3, '6x4': 4, '6x5': 5, '6x6': 6,
-      '6x7': 7, '6x8': 8, '6x9': 9, '6x10': 10, '6x12': 12
-    }
-    return sizes[options.size] || 6
-  }
-  
-  const cabinWidth = 6 
-  const cabinLength = getCabinLength()
-  const scale = 55 
-  
-  const svgWidth = cabinWidth * scale + 40
-  const svgHeight = cabinLength * scale + 40
-  
-  // Extrae coordenadas detectando si es Mouse o pantalla táctil
-  const getClientCoords = (e: React.MouseEvent | React.TouchEvent) => {
-    if ('touches' in e) {
-      if (e.touches.length === 0) return null
-      return { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    }
-    return { x: e.clientX, y: e.clientY }
-  }
+  }, [selectedTarget, activeStructureData])
 
-  // --- SISTEMA DE IMÁN (SNAP) ---
-  const applySnap = (currentValue: number, targetValue: number, tolerance = 0.2): number => {
-    if (Math.abs(currentValue - targetValue) < tolerance) {
-      return targetValue
-    }
-    return currentValue
-  }
+  // --- 🔄 APLICAR CAMBIOS DESDE LAS CAJAS DE TEXTO MANUALES ---
+  const applyManualDimension = (field: 'width' | 'length', valStr: string) => {
+    const newSize = parseFloat(valStr)
+    if (!newSize || newSize <= 0.5 || !activeStructureData) return
+    const { minX, minY, width: currentW, length: currentL } = activeStructureData
 
-  // Handlers para arrastrar / mover
-  const handleStartDrag = (roomId: string, e: React.MouseEvent | React.TouchEvent) => {
-    if (e.cancelable) e.preventDefault()
-    e.stopPropagation()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
-
-    setSelectedRoom(roomId)
-    setIsDragging(true)
-    setDragStart({ x: coords.x, y: coords.y })
-  }
-  
-  const handleMoveDrag = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDragging || !selectedRoom) return
-    if (e.cancelable) e.preventDefault()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
-    
-    const dx = (coords.x - dragStart.x) / scale
-    const dy = (coords.y - dragStart.y) / scale
-    
-    setRooms(prevRooms => {
-      const activeRoom = prevRooms.find(r => r.id === selectedRoom)
-      if (!activeRoom) return prevRooms
-
-      let newX = Math.max(0, Math.min(cabinWidth - activeRoom.width, activeRoom.x + dx))
-      let newY = Math.max(0, Math.min(cabinLength - activeRoom.height, activeRoom.y + dy))
-
-      // Imán contra los perímetros de la cabaña externa
-      newX = applySnap(newX, 0)
-      newX = applySnap(newX, cabinWidth - activeRoom.width)
-      newY = applySnap(newY, 0)
-      newY = applySnap(newY, cabinLength - activeRoom.height)
-
-      // Imán colisionador contra otros ambientes en el plano
-      prevRooms.forEach(otherRoom => {
-        if (otherRoom.id === selectedRoom) return
-
-        newX = applySnap(newX, otherRoom.x + otherRoom.width)
-        newX = applySnap(newX, otherRoom.x - activeRoom.width)
-        newY = applySnap(newY, otherRoom.y + otherRoom.height)
-        newY = applySnap(newY, otherRoom.y - activeRoom.height)
-        newX = applySnap(newX, otherRoom.x)
-        newY = applySnap(newY, otherRoom.y)
-      })
-
-      return prevRooms.map(room => 
-        room.id === selectedRoom ? { ...room, x: newX, y: newY } : room
-      )
-    })
-
-    setDragStart({ x: coords.x, y: coords.y })
-  }
-  
-  const handleEndInteraction = () => {
-    setIsDragging(false)
-    setResizing(null)
-    setResizeEdge(null)
-    if (onUpdate) onUpdate(rooms)
-  }
-  
-  // Handlers para estirar / redimensionar nodos
-  const handleStartResize = (roomId: string, edge: string, e: React.MouseEvent | React.TouchEvent) => {
-    if (e.cancelable) e.preventDefault()
-    e.stopPropagation()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
-
-    setResizing(roomId)
-    setResizeEdge(edge)
-    setDragStart({ x: coords.x, y: coords.y })
-  }
-  
-  const handleMoveResize = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!resizing || !resizeEdge) return
-    if (e.cancelable) e.preventDefault()
-    
-    const coords = getClientCoords(e)
-    if (!coords) return
-    
-    const dx = (coords.x - dragStart.x) / scale
-    const dy = (coords.y - dragStart.y) / scale
-    
-    setRooms(rooms.map(room => {
-      if (room.id === resizing) {
-        let newWidth = room.width
-        let newHeight = room.height
-        
-        if (resizeEdge.includes('e')) newWidth = Math.max(1, room.width + dx)
-        if (resizeEdge.includes('s')) newHeight = Math.max(1, room.height + dy)
-        
-        newWidth = Math.min(cabinWidth - room.x, newWidth)
-        newHeight = Math.min(cabinLength - room.y, newHeight)
-        
-        return { ...room, width: newWidth, height: newHeight }
+    setRooms(prev => prev.map(r => {
+      if (r.id !== selectedTarget.id) return r
+      return {
+        ...r,
+        vertices: r.vertices.map(v => {
+          if (field === 'width') {
+            const relX = (v.x - minX) / currentW
+            return { ...v, x: Math.round((minX + relX * newSize) * 10) / 10 }
+          } else {
+            const relY = (v.y - minY) / currentL
+            return { ...v, y: Math.round((minY + relY * newSize) * 10) / 10 }
+          }
+        })
       }
-      return room
     }))
-    setDragStart({ x: coords.x, y: coords.y })
   }
-  
-  const addRoom = (type: typeof roomTypes[0]) => {
+
+  // --- 🛒 INSERTAR NUEVOS MÓDULOS ---
+  const handleAddRoom = (type: 'Living' | 'Dormitorio' | 'Baño') => {
+    const id = `r-${Date.now()}`
+    const template = ROOM_TEMPLATES[type]
+    const offset = rooms.length * 1.2
     const newRoom: Room = {
-      id: Date.now().toString(),
-      name: `${type.name} ${rooms.filter(r => r.name.includes(type.name)).length + 1}`,
-      x: 0,
-      y: 0,
-      width: type.defaultSize.width,
-      height: type.defaultSize.height,
-      color: roomColors[type.name] || '#f0fdf4'
+      id,
+      name: `${template.name} ${rooms.length + 1}`,
+      type,
+      vertices: [
+        { x: 3 + offset, y: 2 + offset },
+        { x: 7 + offset, y: 2 + offset },
+        { x: 7 + offset, y: 6 + offset },
+        { x: 3 + offset, y: 6 + offset }
+      ],
+      items: [{ id: `w-${Date.now()}`, type: 'ventana', x: 5 + offset, y: 2 + offset }]
     }
     setRooms([...rooms, newRoom])
+    setSelectedTarget({ type: 'room', id })
   }
-  
-  const removeRoom = (roomId: string) => {
-    setRooms(rooms.filter(r => r.id !== roomId))
-  }
-  
-  const updateRoomName = (roomId: string, newName: string) => {
-    setRooms(rooms.map(room => room.id === roomId ? { ...room, name: newName } : room))
-  }
-  
-  // --- MÉTRICAS FINANCIERAS Y DE ESPACIO ---
-  const totalArea = rooms.reduce((sum, room) => sum + (room.width * room.height), 0)
-  const cabinArea = cabinWidth * cabinLength
-  const freeArea = cabinArea - totalArea
 
-  const estimatedStructurePrice = rooms.reduce((sum, room) => {
-    const baseName = Object.keys(costPerM2).find(key => room.name.includes(key)) || 'Dormitorio'
-    const roomArea = room.width * room.height
-    return sum + (roomArea * costPerM2[baseName])
-  }, 0)
+  // --- 🖱️ MOTOR DRAG MOUSE GLOBAL CAD ---
+  useEffect(() => {
+    const handleGlobalMove = (e: MouseEvent) => {
+      if (!dragInfo || !svgRef.current) return
+      const rect = svgRef.current.getBoundingClientRect()
+      const mX = (e.clientX - rect.left) / scale
+      const mY = (e.clientY - rect.top) / scale
+      const snap = (v: number) => Math.round(v * 10) / 10
 
-  // Enlace directo de exportación y envío a WhatsApp corporativo
-  const handleExportToWhatsApp = () => {
-    const phoneNumber = "54911XXXXXX" // REEMPLAZAR POR TU TELÉFONO REAL CON CÓDIGO DE PAÍS
-    
-    let message = `🏠 *¡Hola! Diseñé mi cabaña ideal en el configurador web.* 🛠️\n\n`
-    message += `*Detalles de la Cabaña:* ${cabinWidth}x${cabinLength}m (${cabinArea.toFixed(1)} m²)\n`
-    message += `*Ambientes distribuidos:* ${rooms.length}\n`
-    message += `───────────────────\n`
-    
-    rooms.forEach((room, idx) => {
-      message += `${idx + 1}. *${room.name}*: ${room.width.toFixed(1)}x${room.height.toFixed(1)}m (${(room.width * room.height).toFixed(1)} m²)\n`
-    })
-    
-    message += `───────────────────\n`
-    message += `*Presupuesto Estimado:* USD $${estimatedStructurePrice.toLocaleString('es-AR')}\n\n`
-    message += `¿Me podrían asesorar para iniciar el proyecto y revisar la factibilidad técnica?`
+      if (dragInfo.type === 'vertex') {
+        setRooms(prev => prev.map(r => {
+          if (r.id !== dragInfo.id) return r
+          const nv = [...r.vertices]
+          nv[dragInfo.index!] = { x: snap(mX), y: snap(mY) }
+          return { ...r, vertices: nv }
+        }))
+      }
+      else if (dragInfo.type === 'room-center' && dragInfo.startX && dragInfo.startY && dragInfo.originalVertices) {
+        const dx = mX - dragInfo.startX
+        const dy = mY - dragInfo.startY
+        setRooms(prev => prev.map(r => r.id === dragInfo.id ? {
+          ...r, vertices: dragInfo.originalVertices!.map(v => ({ x: snap(v.x + dx), y: snap(v.y + dy) }))
+        } : r))
+      }
+    }
+    const handleGlobalUp = () => setDragInfo(null)
+    if (dragInfo) {
+      window.addEventListener('mousemove', handleGlobalMove)
+      window.addEventListener('mouseup', handleGlobalUp)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMove)
+      window.removeEventListener('mouseup', handleGlobalUp)
+    }
+  }, [dragInfo])
 
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`
-    window.open(whatsappUrl, '_blank')
-  }
-  
-  const handleGlobalMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (resizing) handleMoveResize(e)
-    else if (isDragging) handleMoveDrag(e)
-  }
+  const globalBounds = useMemo(() => {
+    if (rooms.length === 0) return { w: 1, l: 1, cx: 0, cy: 0 }
+    let minX = 999, maxX = -999, minY = 999, maxY = -999
+    rooms.forEach(r => r.vertices.forEach(v => {
+      if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x
+      if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y
+    }))
+    return { w: maxX - minX, l: maxY - minY, cx: minX + (maxX - minX)/2, cy: minY + (maxY - minY)/2 }
+  }, [rooms])
 
   return (
-    <div className="space-y-6 select-none">
-      {/* Pestañas de Navegación de Vistas */}
-      <div className="flex border-b border-gray-200 justify-between items-center">
-        <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
-          <button
-            onClick={() => setActiveTab('2d')}
-            className={`flex-1 sm:flex-none py-2.5 px-3 text-center font-semibold text-xs sm:text-sm border-b-2 transition ${
-              activeTab === '2d' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500'
-            }`}
-          >
-            📐 Plano 2D (Editar)
+    <div className="flex flex-col xl:flex-row gap-6 p-6 bg-slate-900 text-white rounded-3xl shadow-2xl select-none">
+      
+      {/* 🛠️ PANEL IZQUIERDO UNIFICADO DE ARQUITECTURA */}
+      <div className="w-full xl:w-85 flex flex-col gap-4 bg-slate-950 p-5 rounded-2xl border border-slate-800 shrink-0">
+        <div>
+          <span className="text-[10px] bg-amber-500/20 text-amber-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Estudio de Cabañas Realista</span>
+          <h2 className="text-lg font-black tracking-tight mt-1">Configurador CAD Profesional</h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <button onClick={() => setActiveTab('2d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '2d' ? 'bg-amber-600 text-white' : 'text-slate-400'}`}>
+            📐 Plano Plano 2D
           </button>
-          <button
-            onClick={() => setActiveTab('3d')}
-            className={`flex-1 sm:flex-none py-2.5 px-3 text-center font-semibold text-xs sm:text-sm border-b-2 transition flex items-center justify-center gap-1.5 ${
-              activeTab === '3d' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
-            }`}
-          >
-            🏠 Vista 3D Realista ✨
+          <button onClick={() => setActiveTab('3d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '3d' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>
+            🪵 Render Vivo 3D ✨
           </button>
         </div>
-      </div>
 
-      {activeTab === '2d' ? (
-        <>
-          {/* Toolbar de ambientes */}
-          <div className="bg-gray-50 p-3 sm:p-4 rounded-xl shadow-sm">
-            <h4 className="font-semibold text-gray-700 mb-2.5 text-xs sm:text-sm flex items-center gap-1">➕ Añadir ambientes:</h4>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {roomTypes.map((type) => (
-                <button
-                  key={type.name}
-                  onClick={() => addRoom(type)}
-                  className="flex items-center gap-1.5 px-2.5 py-2 bg-white border border-gray-200 rounded-lg active:bg-green-50 active:border-green-600 transition shadow-sm text-gray-700"
-                >
-                  <span className="text-sm">{type.icon}</span>
-                  <span className="text-xs font-medium">{type.name}</span>
-                </button>
-              ))}
+        <hr className="border-slate-800" />
+
+        {/* 🟩 FORMULARIO CON INPUTS NUMÉRICOS REALES */}
+        {activeStructureData && (
+          <div className="p-4 bg-slate-900 rounded-xl border-2 border-amber-500/30 space-y-3">
+            <div>
+              <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">✏️ Editar Módulo Seleccionado:</p>
+              <input 
+                type="text"
+                value={rooms.find(r => r.id === selectedTarget.id)?.name || ''}
+                onChange={(e) => setRooms(prev => prev.map(r => r.id === selectedTarget.id ? { ...r, name: e.target.value } : r))}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs font-bold text-white outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-400 block font-bold">Ancho (Frente):</label>
+                <div className="flex items-center bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 transition">
+                  <input 
+                    type="number" step="0.1" min="1"
+                    value={inputWidth} 
+                    onChange={(e) => setInputWidth(e.target.value)}
+                    onBlur={() => applyManualDimension('width', inputWidth)}
+                    className="w-full bg-transparent text-sm font-mono font-bold text-white outline-none"
+                  />
+                  <span className="text-xs text-slate-500 font-mono">m</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-400 block font-bold">Largo (Fondo):</label>
+                <div className="flex items-center bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 transition">
+                  <input 
+                    type="number" step="0.1" min="1"
+                    value={inputLength} 
+                    onChange={(e) => setInputLength(e.target.value)}
+                    onBlur={() => applyManualDimension('length', inputLength)}
+                    className="w-full bg-transparent text-sm font-mono font-bold text-white outline-none"
+                  />
+                  <span className="text-xs text-slate-500 font-mono">m</span>
+                </div>
+              </div>
             </div>
           </div>
-          
-          {/* Plano interactivo SVG (Soporta Touch y Mouse) */}
-          <div 
-            className="relative overflow-auto border-2 border-gray-200 rounded-xl bg-slate-50 p-2 sm:p-4 flex justify-center shadow-inner touch-none"
-            onMouseMove={handleGlobalMove}
-            onMouseUp={handleEndInteraction}
-            onMouseLeave={handleEndInteraction}
-            onTouchMove={handleGlobalMove}
-            onTouchEnd={handleEndInteraction}
-          >
-            <svg 
-              width={svgWidth} 
-              height={svgHeight} 
-              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              className="bg-white rounded-lg shadow-md border border-gray-100"
-            >
-              <defs>
-                <pattern id="grid" width={scale / 2} height={scale / 2} patternUnits="userSpaceOnUse">
-                  <path d={`M ${scale / 2} 0 L 0 0 0 ${scale / 2}`} fill="none" stroke="#f1f5f9" strokeWidth="1" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
+        )}
 
-              {/* Contorno perimetral de la cabaña */}
-              <rect
-                x={20}
-                y={20}
-                width={cabinWidth * scale}
-                height={cabinLength * scale}
-                fill="transparent"
-                stroke="#0f766e"
-                strokeWidth="4"
-                rx="6"
-              />
-              
-              <text x={20 + (cabinWidth * scale) / 2} y={15} textAnchor="middle" fontSize="11" fill="#0f766e" className="font-bold">
-                {cabinWidth}m de ancho
-              </text>
-              <text x={svgWidth - 12} y={20 + (cabinLength * scale) / 2} textAnchor="middle" fontSize="11" fill="#0f766e" className="font-bold" transform={`rotate(90, ${svgWidth - 12}, ${20 + (cabinLength * scale) / 2})`}>
-                {cabinLength}m de largo
-              </text>
-              
-              {/* Dibujo de Habitaciones */}
-              {rooms.map((room) => (
-                <g key={room.id}>
-                  <rect
-                    x={20 + room.x * scale}
-                    y={20 + room.y * scale}
-                    width={room.width * scale}
-                    height={room.height * scale}
-                    fill={room.color}
-                    fillOpacity="0.85"
-                    stroke="#1e293b"
-                    strokeWidth="2.5"
-                    rx="4"
-                    className={`cursor-move transition-all ${selectedRoom === room.id ? 'stroke-blue-600 stroke-2' : ''}`}
-                    onMouseDown={(e) => handleStartDrag(room.id, e)}
-                    onTouchStart={(e) => handleStartDrag(room.id, e)}
-                  />
-                  
-                  {/* Manillas de redimensionamiento agrandadas a r=10 y r=12 para uso móvil */}
-                  <circle
-                    cx={20 + (room.x + room.width) * scale}
-                    cy={20 + room.y * scale}
-                    r="10"
-                    className="fill-amber-500 stroke-white stroke-2 cursor-ew-resize"
-                    onMouseDown={(e) => handleStartResize(room.id, 'e', e)}
-                    onTouchStart={(e) => handleStartResize(room.id, 'e', e)}
-                  />
-                  <circle
-                    cx={20 + (room.x + room.width) * scale}
-                    cy={20 + (room.y + room.height) * scale}
-                    r="12"
-                    className="fill-amber-600 stroke-white stroke-2 cursor-se-resize"
-                    onMouseDown={(e) => handleStartResize(room.id, 'es', e)}
-                    onTouchStart={(e) => handleStartResize(room.id, 'es', e)}
-                  />
-                  <circle
-                    cx={20 + room.x * scale}
-                    cy={20 + (room.y + room.height) * scale}
-                    r="10"
-                    className="fill-amber-500 stroke-white stroke-2 cursor-ns-resize"
-                    onMouseDown={(e) => handleStartResize(room.id, 's', e)}
-                    onTouchStart={(e) => handleStartResize(room.id, 's', e)}
-                  />
-                  
-                  <text
-                    x={20 + room.x * scale + (room.width * scale) / 2}
-                    y={20 + room.y * scale + (room.height * scale) / 2 - 4}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="11"
-                    className="fill-slate-800 font-bold pointer-events-none"
-                  >
-                    {room.name}
-                  </text>
-                  <text
-                    x={20 + room.x * scale + (room.width * scale) / 2}
-                    y={20 + room.y * scale + (room.height * scale) / 2 + 12}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize="9"
-                    className="fill-slate-600 font-semibold pointer-events-none"
-                  >
-                    {room.width.toFixed(1)}x{room.height.toFixed(1)}m
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </div>
-        </>
-      ) : (
-        /* --- RENDERIZADO DE VISTA 3D CON AMUEBLADO --- */
-        <div className="w-full h-[380px] sm:h-[500px] bg-slate-900 rounded-xl overflow-hidden relative shadow-lg border border-slate-800">
-          <div className="absolute top-3 left-3 z-10 bg-slate-800/95 text-white text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg backdrop-blur-sm pointer-events-none shadow">
-            📱 <strong>Un dedo:</strong> Rotar | ✌️ <strong>Pellizcar:</strong> Zoom
-          </div>
-          
-          <Canvas camera={{ position: [7, 9, 11], fov: 45 }}>
-            <color attach="background" args={['#0f172a']} />
-            <ambientLight intensity={0.7} />
-            <directionalLight position={[10, 15, 5]} intensity={1.2} castShadow />
-
-            <Center>
-              {/* Base Estructural o Radier */}
-              <mesh position={[0, -0.05, 0]} receiveShadow>
-                <boxGeometry args={[cabinWidth, 0.1, cabinLength]} />
-                <meshStandardMaterial color="#334155" roughness={0.6} />
-              </mesh>
-
-              {/* Recorrer ambientes e inyectar volumetría y muebles */}
-              {rooms.map((room) => {
-                const posX = room.x + room.width / 2 - cabinWidth / 2
-                const posZ = room.y + room.height / 2 - cabinLength / 2
-                const height3D = 2.2
-                
-                const isBedroom = room.name.toLowerCase().includes('dorm')
-                const isBathroom = room.name.toLowerCase().includes('bañ')
-                const isLiving = room.name.toLowerCase().includes('liv')
-                const isKitchen = room.name.toLowerCase().includes('coc')
-
-                return (
-                  <group key={room.id} position={[posX, 0, posZ]}>
-                    {/* Suelo específico */}
-                    <mesh position={[0, 0.01, 0]}>
-                      <boxGeometry args={[room.width - 0.03, 0.02, room.height - 0.03]} />
-                      <meshStandardMaterial 
-                        color={isBathroom || isKitchen ? '#cbd5e1' : '#b45309'} 
-                        roughness={isBathroom || isKitchen ? 0.2 : 0.5} 
-                      />
-                    </mesh>
-
-                    {/* Muros transparentes */}
-                    <mesh position={[0, height3D / 2, 0]}>
-                      <boxGeometry args={[room.width, height3D, room.height]} />
-                      <meshStandardMaterial color={room.color} wireframe transparent opacity={0.2} />
-                    </mesh>
-
-                    {/* Contorno indicador de base sólida */}
-                    <mesh position={[0, 0.1, 0]}>
-                      <boxGeometry args={[room.width, 0.2, room.height]} />
-                      <meshStandardMaterial color="#1e293b" opacity={0.8} transparent />
-                    </mesh>
-
-                    {/* --- MOBILIARIO LOW-POLY NATIVO AUTOMÁTICO --- */}
-                    {isBedroom && (
-                      <group position={[0, 0.02, 0]}>
-                        <mesh position={[0, 0.15, 0]}>
-                          <boxGeometry args={[1.4, 0.3, 1.8]} />
-                          <meshStandardMaterial color="#f8fafc" roughness={0.8} />
-                        </mesh>
-                        <mesh position={[0, 0.4, -0.85]}>
-                          <boxGeometry args={[1.4, 0.5, 0.1]} />
-                          <meshStandardMaterial color="#64748b" />
-                        </mesh>
-                        <mesh position={[0, 0.16, 0.2]}>
-                          <boxGeometry args={[1.42, 0.29, 1.0]} />
-                          <meshStandardMaterial color="#1e3a8a" />
-                        </mesh>
-                      </group>
-                    )}
-
-                    {isBathroom && (
-                      <group position={[0, 0.02, 0]}>
-                        <mesh position={[-room.width/4, 0.2, -room.height/4]}>
-                          <boxGeometry args={[0.35, 0.4, 0.5]} />
-                          <meshStandardMaterial color="#ffffff" roughness={0.1} />
-                        </mesh>
-                        <mesh position={[-room.width/4, 0.45, -room.height/4 - 0.18]}>
-                          <boxGeometry args={[0.35, 0.4, 0.15]} />
-                          <meshStandardMaterial color="#ffffff" roughness={0.1} />
-                        </mesh>
-                      </group>
-                    )}
-
-                    {isLiving && (
-                      <group position={[0, 0.02, 0]}>
-                        <mesh position={[0, 0.15, 0]}>
-                          <boxGeometry args={[2.0, 0.3, 0.7]} />
-                          <meshStandardMaterial color="#374151" roughness={0.9} />
-                        </mesh>
-                        <mesh position={[0, 0.4, -0.3]}>
-                          <boxGeometry args={[2.0, 0.4, 0.12]} />
-                          <meshStandardMaterial color="#374151" roughness={0.9} />
-                        </mesh>
-                      </group>
-                    )}
-
-                    {isKitchen && (
-                      <group position={[0, 0.02, 0]}>
-                        <mesh position={[0, 0.35, -room.height/2 + 0.35]}>
-                          <boxGeometry args={[room.width - 0.2, 0.7, 0.5]} />
-                          <meshStandardMaterial color="#e2e8f0" roughness={0.5} />
-                        </mesh>
-                        <mesh position={[0, 0.71, -room.height/2 + 0.35]}>
-                          <boxGeometry args={[room.width - 0.1, 0.03, 0.52]} />
-                          <meshStandardMaterial color="#1e293b" roughness={0.2} />
-                        </mesh>
-                      </group>
-                    )}
-                  </group>
-                )
-              })}
-            </Center>
-
-            <Grid position={[0, -0.06, 0]} args={[20, 20]} cellColor="#334155" sectionColor="#475569" fadeDistance={20} />
-            <OrbitControls enableDamping dampingFactor={0.07} maxPolarAngle={Math.PI / 2.2} minDistance={4} maxDistance={20} />
-          </Canvas>
-        </div>
-      )}
-      
-      {/* Listado y Edición Manual de Nombres de Ambientes */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-        {rooms.map((room) => (
-          <div key={room.id} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded-xl shadow-sm">
-            <div className="w-4 h-4 rounded border border-gray-200 shrink-0" style={{ backgroundColor: room.color }}></div>
-            <input
-              type="text"
-              value={room.name}
-              onChange={(e) => updateRoomName(room.id, e.target.value)}
-              className="flex-1 min-w-0 px-2 py-1 border border-gray-200 rounded-lg text-xs bg-gray-50 text-gray-700 font-medium focus:bg-white"
-            />
-            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
-              {room.width.toFixed(1)}x{room.height.toFixed(1)}m
-            </span>
-            <button onClick={() => removeRoom(room.id)} className="text-gray-400 active:text-red-500 p-1 shrink-0">
-              🗑️
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">🔨 Catálogo Constructivo:</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => handleAddRoom('Living')} className="bg-amber-950/40 border border-amber-800 p-2 rounded-xl text-xs font-bold transition hover:bg-amber-900">
+              🛋️ + Living/Cocina
+            </button>
+            <button onClick={() => handleAddRoom('Dormitorio')} className="bg-blue-950/40 border border-blue-800 p-2 rounded-xl text-xs font-bold transition hover:bg-blue-900">
+              🛏️ + Dormitorio
+            </button>
+            <button onClick={() => handleAddRoom('Baño')} className="bg-pink-950/40 border border-pink-800 p-2 rounded-xl text-xs font-bold transition hover:bg-pink-900">
+              🚽 + Baño Sanitario
             </button>
           </div>
-        ))}
+        </div>
       </div>
-      
-      {/* panel comercial de presupuestos y cierre de ventas */}
-      <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 p-5 rounded-2xl shadow-xl text-white mt-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4 mb-4">
-          <div>
-            <h4 className="font-bold text-base text-emerald-400 flex items-center gap-1.5">
-              💰 Presupuesto Estimado de Estructura
-            </h4>
-            <p className="text-xs text-slate-400 mt-0.5">Basado en las dimensiones y complejidad de tus ambientes.</p>
-          </div>
-          <div className="text-left sm:text-right">
-            <span className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              USD ${estimatedStructurePrice.toLocaleString('es-AR')}
-            </span>
-            <span className="text-[10px] block text-slate-400 font-medium">*Valor referencial de obra gruesa</span>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs mb-5">
-          <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
-            <span className="text-slate-400 block mb-0.5">Superficie Total:</span>
-            <span className="font-bold text-sm text-slate-200">{cabinArea.toFixed(1)} m²</span>
-          </div>
-          <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
-            <span className="text-slate-400 block mb-0.5">Área Diseñada:</span>
-            <span className="font-bold text-sm text-slate-200">{totalArea.toFixed(1)} m²</span>
-          </div>
-          <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 col-span-2 sm:col-span-1">
-            <span className="text-slate-400 block mb-0.5">Espacio Libre:</span>
-            <span className={`font-bold text-sm ${freeArea < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-              {freeArea.toFixed(1)} m²
-            </span>
-          </div>
-        </div>
+      {/* 🖥️ ÁREA DE TRABAJO */}
+      <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden relative min-h-[560px]">
+        {activeTab === '2d' ? (
+          <div className="w-full h-full flex justify-center items-center bg-[radial-gradient(#334155_1.2px,transparent_1.2px)] [background-size:20px_20px]">
+            <svg ref={svgRef} width="660" height="500" className="bg-slate-900 rounded-xl border border-slate-800 overflow-visible">
+              {rooms.map(room => {
+                const pointsStr = room.vertices.map(v => `${v.x * scale},${v.y * scale}`).join(' ')
+                const isSel = selectedTarget.type === 'room' && selectedTarget.id === room.id
+                const template = ROOM_TEMPLATES[room.type] || ROOM_TEMPLATES['Living']
 
-        {freeArea < 0 ? (
-          <div className="p-3 bg-red-950/40 border border-red-900/60 rounded-xl text-red-300 text-xs font-medium text-center">
-            ⚠️ ¡Cuidado! Estás usando más metros de los permitidos para este modelo de cabaña. Reducí el tamaño de algún ambiente.
+                return (
+                  <g key={room.id}>
+                    <polygon 
+                      points={pointsStr} fill={template.color} fillOpacity={isSel ? "0.95" : "0.75"} stroke="#451a03" strokeWidth="5" strokeLinejoin="round" className="cursor-move"
+                      onMouseDown={(e) => {
+                        if (!svgRef.current) return
+                        const rect = svgRef.current.getBoundingClientRect()
+                        setDragInfo({
+                          type: 'room-center', id: room.id,
+                          startX: (e.clientX - rect.left)/scale, startY: (e.clientY - rect.top)/scale,
+                          originalVertices: JSON.parse(JSON.stringify(room.vertices))
+                        })
+                        setSelectedTarget({ type: 'room', id: room.id })
+                      }}
+                    />
+                    <text x={room.vertices[0].x * scale + 12} y={room.vertices[0].y * scale + 24} fontSize="11" className="fill-stone-900 font-black pointer-events-none">{template.icon} {room.name}</text>
+                    {room.vertices.map((v, idx) => (
+                      <circle key={`dot-${room.id}-${idx}`} cx={v.x * scale} cy={v.y * scale} r="7.5" className="fill-amber-500 stroke-slate-950 stroke-2 cursor-move hover:fill-white"
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragInfo({ type: 'vertex', id: room.id, index: idx }); setSelectedTarget({ type: 'room', id: room.id }) }}
+                      />
+                    ))}
+                  </g>
+                )
+              })}
+            </svg>
           </div>
         ) : (
-          <button
-            onClick={handleExportToWhatsApp}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base tracking-wide"
-          >
-            💬 Enviar mi Plano y Cotizar por WhatsApp
-          </button>
+          /* ☀️ RENDER 3D PROFESIONAL CON TECHOS DE CHAPA Y PILOTES */
+          <div className="w-full h-[560px] relative">
+            <Canvas camera={{ position: [globalBounds.cx, 10, globalBounds.cy + 10], fov: 40 }} shadows>
+              <color attach="background" args={['#e0f2fe']} />
+              <Sky sunPosition={[100, 150, 100]} inclination={0.6} elevation={45} />
+              <ambientLight intensity={0.9} />
+              <directionalLight position={[25, 35, 20]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
+              
+              <Center>
+                {rooms.map(room => {
+                  const shape = new THREE.Shape()
+                  if (room.vertices.length === 0) return null
+                  shape.moveTo(room.vertices[0].x, room.vertices[0].y)
+                  for (let i = 1; i < room.vertices.length; i++) shape.lineTo(room.vertices[i].x, room.vertices[i].y)
+                  shape.closePath()
+
+                  return (
+                    <group key={`3d-r-${room.id}`}>
+                      {/* MUROS DE MADERA RÚSTICA SOBREELEVADOS */}
+                      <mesh castShadow receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.2, 0]}>
+                        <extrudeGeometry args={[shape, { depth: 2.3, bevelEnabled: false }]} />
+                        <meshStandardMaterial color="#7c2d12" roughness={0.75} side={THREE.DoubleSide} />
+                      </mesh>
+                    </group>
+                  )
+                })}
+
+                {/* PILOTES DE BASE DE CIMENTACIÓN */}
+                {rooms.map(room => room.vertices.map((v, idx) => (
+                  <mesh key={`3d-p-${room.id}-${idx}`} position={[v.x, 0.1, v.y]} castShadow>
+                    <cylinderGeometry args={[0.1, 0.12, 0.2]} />
+                    <meshStandardMaterial color="#2d1606" />
+                  </mesh>
+                )))}
+
+                {/* TECHO UNIFICADO DE CHAPA ACERADA */}
+                <group position={[globalBounds.cx, 2.5, globalBounds.cy]}>
+                  <mesh position={[-globalBounds.w / 4, globalBounds.w * 0.11, 0]} rotation={[0, 0, 0.36]} castShadow>
+                    <boxGeometry args={[globalBounds.w / 1.55, 0.06, globalBounds.l + 0.6]} />
+                    <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
+                  </mesh>
+                  <mesh position={[globalBounds.w / 4, globalBounds.w * 0.11, 0]} rotation={[0, 0, -0.36]} castShadow>
+                    <boxGeometry args={[globalBounds.w / 1.55, 0.06, globalBounds.l + 0.6]} />
+                    <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.2} />
+                  </mesh>
+                </group>
+              </Center>
+
+              <Grid position={[0, -0.01, 0]} args={[50, 50]} cellColor="#cbd5e1" sectionColor="#94a3b8" fadeDistance={30} />
+              <OrbitControls enableDamping dampingFactor={0.05} />
+            </Canvas>
+          </div>
         )}
       </div>
     </div>
