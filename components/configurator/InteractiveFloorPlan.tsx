@@ -25,7 +25,7 @@ export default function InteractiveFloorPlan() {
   const [cabinLength, setCabinLength] = useState<number>(7.0)
 
   // 🚶 CONFIGURACIÓN DEL CAMINADOR (DECK)
-  const [walkwayWidth, setWalkwayWidth] = useState<number>(1.2) // Medida ajustable del caminador
+  const [walkwayWidth, setWalkwayWidth] = useState<number>(1.2)
 
   // 🚪 BLOQUES DE AMBIENTES
   const [rooms, setRooms] = useState<RoomBlock[]>([])
@@ -55,7 +55,7 @@ export default function InteractiveFloorPlan() {
   const [floorFinish, setFloorFinish] = useState<'Madera' | 'Ceramica'>('Madera')
   const [roofColor, setRoofColor] = useState<string>('#334155')
   const [woodColor, setWoodColor] = useState<string>('#b45309')
-  const [eaves, setEaves] = useState({ n: true, s: false, e: true, o: false }) // Aleros independientes
+  const [eaves, setEaves] = useState({ n: true, s: false, e: true, o: false })
   const [hasWalkway, setHasWalkway] = useState<boolean>(true)
   const [showRoof3D, setShowRoof3D] = useState<boolean>(true)
 
@@ -67,7 +67,7 @@ export default function InteractiveFloorPlan() {
     return { minX: -margin, minY: -margin, w: cabinWidth + (margin * 2), l: cabinLength + (margin * 2) }
   }, [cabinWidth, cabinLength])
 
-  // --- TRAZADOR DE COORDENADAS (MOUSE / TOUCH) ---
+  // --- TRAZADOR DE COORDENADAS ---
   const getCoordinatesFromEvent = (e: any) => {
     if (!svgRef.current) return null
     const rect = svgRef.current.getBoundingClientRect()
@@ -80,14 +80,12 @@ export default function InteractiveFloorPlan() {
     return { x, y }
   }
 
-  // Iniciar cambio de tamaño (Esquinas)
   const handleResizeStart = (roomId: string, handle: any, e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation()
     setSelectedRoomId(roomId)
     setInteractionMode({ type: 'resize', roomId, handle })
   }
 
-  // Iniciar movimiento completo (Centro del bloque)
   const handleMoveStart = (roomId: string, e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation()
     setSelectedRoomId(roomId)
@@ -95,7 +93,6 @@ export default function InteractiveFloorPlan() {
     const room = rooms.find(r => r.id === roomId)
     if (!coords || !room) return
 
-    // Guardamos la distancia entre el mouse y la esquina superior izquierda del cuarto
     setInteractionMode({
       type: 'move',
       roomId,
@@ -103,7 +100,6 @@ export default function InteractiveFloorPlan() {
     })
   }
 
-  // Gestor de arrastre global
   const handleGlobalMove = (e: any) => {
     if (!interactionMode) return
     const coords = getCoordinatesFromEvent(e)
@@ -128,11 +124,9 @@ export default function InteractiveFloorPlan() {
         const w = r.max.x - r.min.x
         const l = r.max.y - r.min.y
         
-        // Nueva posición calculada usando el offset guardado
         let newMinX = coords.x - interactionMode.startOffset.x
         let newMinY = coords.y - interactionMode.startOffset.y
         
-        // Límites para que no se salga de la cabaña máster
         newMinX = Math.max(0, Math.min(cabinWidth - w, newMinX))
         newMinY = Math.max(0, Math.min(cabinLength - l, newMinY))
 
@@ -147,6 +141,12 @@ export default function InteractiveFloorPlan() {
   }
 
   const handleGlobalEnd = () => setInteractionMode(null)
+
+  // Altura del piso terminado interior calculada fuera del JSX
+  const floorY = baseType === 'Pilotes' ? 0.5 : 0.2
+  const extW = cabinWidth + walkwayWidth * 2
+  const extL = cabinLength + walkwayWidth * 2
+  const hBaranda = 0.70 
 
   return (
     <div className="flex flex-col xl:flex-row gap-4 p-2 sm:p-4 bg-slate-900 text-white rounded-2xl sm:rounded-3xl shadow-2xl select-none w-full max-w-7xl mx-auto overflow-hidden">
@@ -253,12 +253,10 @@ export default function InteractiveFloorPlan() {
               onTouchEnd={handleGlobalEnd}
               className="w-full h-full max-h-[540px] bg-slate-900 rounded-xl border border-slate-800 shadow-xl touch-none"
             >
-              {/* Línea guía del caminador si está activo */}
               {hasWalkway && (
                 <rect x={-walkwayWidth * scale} y={-walkwayWidth * scale} width={(cabinWidth + walkwayWidth * 2) * scale} height={(cabinLength + walkwayWidth * 2) * scale} fill="none" stroke="#f59e0b" strokeWidth="1" strokeDasharray="3 3" />
               )}
 
-              {/* Límite estructural de la cabaña */}
               <rect x={0} y={0} width={cabinWidth * scale} height={cabinLength * scale} fill="none" stroke="#38bdf8" strokeWidth="2.5" />
               <text x={0} y={-8} fill="#38bdf8" className="text-[10px] font-black uppercase tracking-wider">Perímetro Cabaña</text>
 
@@ -269,13 +267,11 @@ export default function InteractiveFloorPlan() {
 
                 return (
                   <g key={r.id} className="cursor-move">
-                    {/* El centro del rectángulo activa el movimiento completo */}
                     <rect x={r.min.x * scale} y={r.min.y * scale} width={rw} height={rh} fill={r.color2D} fillOpacity="0.2" stroke={isSel ? '#10b981' : '#64748b'} strokeWidth={isSel ? 3 : 1.5} onMouseDown={(e) => handleMoveStart(r.id, e)} onTouchStart={(e) => handleMoveStart(r.id, e)} />
                     
                     <text x={(r.min.x + 0.15) * scale} y={(r.min.y + 0.45) * scale} fill="white" className="text-[10px] font-black pointer-events-none select-none">{r.name}</text>
                     <text x={(r.min.x + 0.15) * scale} y={(r.min.y + 0.9) * scale} fill="#94a3b8" className="text-[9px] font-mono pointer-events-none select-none">{((r.max.x - r.min.x) * (r.max.y - r.min.y)).toFixed(1)}m²</text>
 
-                    {/* Las esquinas activan el redimensionamiento */}
                     {isSel && (
                       <>
                         <circle cx={r.min.x * scale} cy={r.min.y * scale} r="7" className="fill-emerald-400 stroke-slate-950 stroke-2 cursor-nwse-resize" onMouseDown={(e) => handleResizeStart(r.id, 'topLeft', e)} onTouchStart={(e) => handleResizeStart(r.id, 'topLeft', e)} />
@@ -291,7 +287,7 @@ export default function InteractiveFloorPlan() {
           </div>
         ) : (
           
-          /* 🌲 SCENARIO RENDER 3D RE-INGENIERIZADO AL 100% */
+          /* 🌲 SCENARIO RENDER 3D CORREGIDO SIN ELEMENTOS INTERRUMPIDOS */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas 
               camera={{ position: [cabinWidth / 2, cabinWidth * 1.1, cabinLength * 1.8], fov: 42 }} 
@@ -302,13 +298,11 @@ export default function InteractiveFloorPlan() {
               <ambientLight intensity={0.8} />
               <directionalLight position={[25, 45, 25]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]} />
               
-              {/* Entorno Pradera */}
               <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
                 <planeGeometry args={[180, 180]} />
                 <meshStandardMaterial color="#14340e" roughness={0.95} />
               </mesh>
 
-              {/* Bosque de Fondo */}
               <group position={[cabinWidth / 2, 0, cabinLength / 2]}>
                 {[...Array(30)].map((_, i) => {
                   const angle = (i / 30) * Math.PI * 2
@@ -324,7 +318,6 @@ export default function InteractiveFloorPlan() {
               </group>
 
               <Center>
-                {/* 🪵 PILOTES DE LA CABAÑA BASE */}
                 {baseType === 'Pilotes' && (
                   <group>
                     {[0.1, cabinWidth / 2, cabinWidth - 0.1].map(x =>
@@ -338,27 +331,22 @@ export default function InteractiveFloorPlan() {
                   </group>
                 )}
 
-                {/* 🧱 PLATEA OPCIONAL */}
                 {baseType === 'PlateaHormigon' && (
                   <mesh position={[cabinWidth / 2, 0.1, cabinLength / 2]} receiveShadow>
                     <boxGeometry args={[cabinWidth, 0.2, cabinLength]} />
                     <meshStandardMaterial color="#4b5563" roughness={0.7} />
                   </mesh>
-                )/* Altura del piso terminado interior */}
-                {const floorY = baseType === 'Pilotes' ? 0.5 : 0.2}
+                )}
 
-                {/* 🚶 WALKWAY / CAMINADOR CON SUS PROPIOS PILOTES INDEPENDIENTES */}
+                {/* 🚶 WALKWAY / CAMINADOR DECK CON PILOTES Y CERQUITA */}
                 {hasWalkway && (
                   <group>
-                    {/* Plataforma de madera extendida según las dimensiones dadas */}
                     <mesh position={[cabinWidth / 2, floorY - 0.02, cabinLength / 2]} receiveShadow>
-                      <boxGeometry args={[cabinWidth + walkwayWidth * 2, 0.04, cabinLength + walkwayWidth * 2]} />
+                      <boxGeometry args={[extW, 0.04, extL]} />
                       <meshStandardMaterial color="#2d1606" roughness={0.95} />
                     </mesh>
 
-                    {/* Pilotes del Caminador (Llegan hasta el suelo 0) */}
                     <group>
-                      {/* Esquinas exteriores del deck pasante */}
                       {[-(walkwayWidth - 0.1), cabinWidth + (walkwayWidth - 0.1)].map(x =>
                         [-(walkwayWidth - 0.1), cabinLength + (walkwayWidth - 0.1)].map((z, idx) => (
                           <mesh key={`p-deck-${x}-${z}-${idx}`} position={[x, floorY / 2, z]} castShadow>
@@ -369,40 +357,27 @@ export default function InteractiveFloorPlan() {
                       )}
                     </group>
 
-                    {/* 🚧 CERQUITA / BARANDA DE SEGURIDAD (Postes y Pasamanos a 70cm de alto) */}
+                    {/* 🚧 CERQUITA / BARANDA DE SEGURIDAD DE 70 CM */}
                     <group position={[cabinWidth / 2, floorY, cabinLength / 2]}>
-                      {/* Ancho y Largo exterior del caminador */}
-                      {(() => {
-                        const extW = cabinWidth + walkwayWidth * 2
-                        const extL = cabinLength + walkwayWidth * 2
-                        const hBaranda = 0.70 // 70 cm de alto
+                      <mesh position={[0, hBaranda, -extL / 2]}><boxGeometry args={[extW, 0.04, 0.04]} /><meshStandardMaterial color="#3b2314" /></mesh>
+                      <mesh position={[0, hBaranda, extL / 2]}><boxGeometry args={[extW, 0.04, 0.04]} /><meshStandardMaterial color="#3b2314" /></mesh>
+                      <mesh position={[-extW / 2, hBaranda, 0]}><boxGeometry args={[0.04, 0.04, extL]} /><meshStandardMaterial color="#3b2314" /></mesh>
+                      <mesh position={[extW / 2, hBaranda, 0]}><boxGeometry args={[0.04, 0.04, extL]} /><meshStandardMaterial color="#3b2314" /></mesh>
 
-                        return (
-                          <group>
-                            {/* Pasamanos Superior Perimetral */}
-                            <mesh position={[0, hBaranda, -extL / 2]}><boxGeometry args={[extW, 0.04, 0.04]} /><meshStandardMaterial color="#3b2314" /></mesh>
-                            <mesh position={[0, hBaranda, extL / 2]}><boxGeometry args={[extW, 0.04, 0.04]} /><meshStandardMaterial color="#3b2314" /></mesh>
-                            <mesh position={[-extW / 2, hBaranda, 0]}><boxGeometry args={[0.04, 0.04, extL]} /><meshStandardMaterial color="#3b2314" /></mesh>
-                            <mesh position={[extW / 2, hBaranda, 0]}><boxGeometry args={[0.04, 0.04, extL]} /><meshStandardMaterial color="#3b2314" /></mesh>
-
-                            {/* Postes verticales de soporte ("Cerquita") */}
-                            {[-extW / 2, 0, extW / 2].map((x, i) => (
-                              <group key={`p-vert-${i}`}>
-                                <mesh position={[x, hBaranda / 2, -extL / 2]}><cylinderGeometry args={[0.03, 0.03, hBaranda]} /><meshStandardMaterial color="#3b2314" /></mesh>
-                                <mesh position={[x, hBaranda / 2, extL / 2]}><cylinderGeometry args={[0.03, 0.03, hBaranda]} /><meshStandardMaterial color="#3b2314" /></mesh>
-                              </group>
-                            ))}
-                          </group>
-                        )
-                      })()}
+                      {[-extW / 2, 0, extW / 2].map((x, i) => (
+                        <group key={`p-vert-${i}`}>
+                          <mesh position={[x, hBaranda / 2, -extL / 2]}><cylinderGeometry args={[0.03, 0.03, hBaranda]} /><meshStandardMaterial color="#3b2314" /></mesh>
+                          <mesh position={[x, hBaranda / 2, extL / 2]}><cylinderGeometry args={[0.03, 0.03, hBaranda]} /><meshStandardMaterial color="#3b2314" /></mesh>
+                        </group>
+                      ))}
                     </group>
                   </group>
                 )}
 
-                {/* PISO INTERIOR DE LA CABAÑA */}
+                {/* PISO INTERIOR */}
                 <mesh position={[cabinWidth / 2, floorY + 0.01, cabinLength / 2]}>
                   <boxGeometry args={[cabinWidth - 0.02, 0.02, cabinLength - 0.02]} />
-                  <meshStandardMaterial color={floorFinish === 'Madera' ? '#65a30d' : '#cbd5e1'} roughness={0.6} />
+                  <meshStandardMaterial color={floorFinish === 'Madera' ? '#854d0e' : '#cbd5e1'} roughness={0.6} />
                 </mesh>
 
                 {/* MUROS EXTRUIDOS */}
@@ -435,7 +410,7 @@ export default function InteractiveFloorPlan() {
                   </group>
                 )}
 
-                {/* ☔ ALEROS BIOCLIMÁTICOS INDEPENDIENTES (Se proyectan fuera si están activos) */}
+                {/* ☔ ALEROS BIOCLIMÁTICOS INDEPENDIENTES */}
                 <group position={[cabinWidth / 2, floorY + 2.55, cabinLength / 2]}>
                   {eaves.n && (
                     <mesh position={[0, 0.1, -cabinLength / 2 - 0.4]} rotation={[0.1, 0, 0]} castShadow>
