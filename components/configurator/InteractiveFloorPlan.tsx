@@ -53,7 +53,6 @@ const ROOF_COLORS = [
 export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanProps) {
   const [activeTab, setActiveTab] = useState<'2d' | '3d'>('2d')
   
-  // 🔥 CAMBIO REAL DE ESTRUCTURA: Inicialización limpia/vacía para forzar el cambio en el repositorio
   const [walkwayWidth, setWalkwayWidth] = useState<string>('')
   const [eaveLength, setEaveLength] = useState<string>('')
   const [hasWalkway, setHasWalkway] = useState<boolean>(false) 
@@ -96,7 +95,6 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     return { minX, maxX, minY, maxY, w: maxX - minX, l: maxY - minY }
   }, [rooms])
 
-  // --- PARSEO ESTRICTO DE OPCIONALES ADICIONALES ---
   const numWalkway = useMemo(() => {
     if (!walkwayWidth || walkwayWidth.trim() === '') return 0
     const val = parseFloat(walkwayWidth)
@@ -213,7 +211,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
     }))
   }
 
-  // --- 📐 CONSTANTES CONSTRUCTIVAS ---
+  // --- 📐 PARÁMETROS CONSTRUCTIVOS ---
   const floorThickness = 0.15 
   const hPilotes = 0.80       
   const floorY = baseType === 'Pilotes' ? hPilotes : 0.20 
@@ -252,12 +250,11 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
       <div className="w-full xl:w-96 flex flex-col gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800 shrink-0 max-h-[520px] xl:max-h-[740px] overflow-y-auto">
         <div>
           <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">
-            Estudio Arquitectura Pro v5.1
+            Estudio Arquitectura Pro v5.2
           </span>
           <h2 className="text-lg font-black mt-1">Configurador de Cabañas</h2>
         </div>
 
-        {/* SELECTOR DE VISTA */}
         <div className="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
           <button onClick={() => setActiveTab('2d')} className={`py-2 rounded-lg font-bold text-xs transition ${activeTab === '2d' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
             📐 Vista Plano 2D
@@ -267,7 +264,6 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </button>
         </div>
 
-        {/* PALETA DE ACABADOS */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
           <div>
             <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5">🏠 Revestimiento Exterior:</p>
@@ -293,7 +289,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         </div>
 
-        {/* 📏 SECCIÓN DE ADICIONALES TOTALMENTE OPCIONALES (VACÍOS POR DEFECTO) */}
+        {/* 📏 OPCIONALES ADICIONALES */}
         <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2.5">
           <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">➕ Componentes Adicionales (Opcional):</p>
           <div className="grid grid-cols-2 gap-2">
@@ -341,7 +337,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         </div>
 
-        {/* GESTIÓN DE ELEMENTOS INTERNOS */}
+        {/* COMPONENTES INTERNOS */}
         {activeTab === '2d' && (
           <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
             <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">➕ Agregar Componentes:</p>
@@ -379,7 +375,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
         )}
       </div>
 
-      {/* 🖥️ ESPACIO DE VISUALIZACIÓN */}
+      {/* 🖥️ ESPACIO GRÁFICO */}
       <div className="flex-1 bg-slate-950 rounded-2xl border border-slate-800 relative min-h-[500px] sm:min-h-[640px] w-full flex justify-center items-center overflow-hidden">
         {activeTab === '2d' ? (
           <div className="w-full h-full flex flex-col justify-center items-center p-4 bg-[radial-gradient(#334155_1.1px,transparent_1.1px)] [background-size:20px_20px]">
@@ -405,7 +401,6 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                 />
               )}
 
-              {/* Módulos */}
               {rooms.map(r => {
                 const isSel = r.id === selectedId && selectedType === 'room'
                 const rw = typeof r.w === 'string' ? 0 : r.w
@@ -418,7 +413,6 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                 )
               })}
 
-              {/* Componentes del plano */}
               {placedItems.map(item => {
                 const isSel = item.id === selectedId && selectedType === 'item'
                 return (
@@ -432,7 +426,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         ) : (
           
-          /* 🌲 RENDERIZADO TRIDIMENSIONAL DINÁMICO */
+          /* 🌲 RENDERIZADO TRIDIMENSIONAL */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, hMuros + 5, boundingBox.minY + boundingBox.l + 6], fov: 42 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
@@ -515,7 +509,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   )
                 })}
 
-                {/* MUROS INTERIORES Y EXTERIORES */}
+                {/* MUROS */}
                 <group position={[0, floorThickness, 0]}>
                   {rooms.map(r => {
                     const rw = typeof r.w === 'string' ? 0 : r.w
@@ -532,7 +526,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   })}
                 </group>
 
-                {/* AMBLES, PUERTAS Y VENTANAS */}
+                {/* MOBILIARIO Y ABERTURAS */}
                 <group position={[0, floorThickness, 0]}>
                   {placedItems.map(item => {
                     const isAb = item.type === 'puerta' || item.type === 'ventana'
@@ -559,17 +553,28 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   })}
                 </group>
 
-                {/* 🏠 ESTRUCTURA DE COBERTURA (ALERO DINÁMICO REFACTORIZADO) */}
+                {/* 🏠 TECHO PRINCIPAL (MANTIENE SU TAMAÑO FIJO BASE) */}
                 <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
                   <mesh position={[-boundingBox.w / 4, 0.70, 0]} rotation={[0, 0, 0.32]} castShadow>
-                    <boxGeometry args={[boundingBox.w / 1.8 + numEave, 0.06, boundingBox.l + numEave * 2]} />
+                    <boxGeometry args={[boundingBox.w / 1.8, 0.06, boundingBox.l + 0.4]} />
                     <meshStandardMaterial color={roofColor} roughness={0.4} />
                   </mesh>
                   <mesh position={[boundingBox.w / 4, 0.70, 0]} rotation={[0, 0, -0.32]} castShadow>
-                    <boxGeometry args={[boundingBox.w / 1.8 + numEave, 0.06, boundingBox.l + numEave * 2]} />
+                    <boxGeometry args={[boundingBox.w / 1.8, 0.06, boundingBox.l + 0.4]} />
                     <meshStandardMaterial color={roofColor} roughness={0.4} />
                   </mesh>
                 </group>
+
+                {/* ⛱️ NUEVO ALERO INDEPENDIENTE: Va por debajo de la caída del techo base (Y inferior) */}
+                {numEave > 0 && (
+                  <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros - 0.15, boundingBox.minY + boundingBox.l / 2]}>
+                    {/* Alero Frontal (Techando la zona del caminador del frente) */}
+                    <mesh position={[0, 0.1, (boundingBox.l / 2) + (numEave / 2)]} rotation={[0.12, 0, 0]} castShadow>
+                      <boxGeometry args={[boundingBox.w + (numWalkway * 2), 0.04, numEave]} />
+                      <meshStandardMaterial color={roofColor} roughness={0.5} />
+                    </mesh>
+                  </group>
+                )}
 
               </group>
 
