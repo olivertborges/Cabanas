@@ -426,7 +426,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
           </div>
         ) : (
           
-          /* 🌲 RENDERIZADO TRIDIMENSIONAL */
+          /* 🌲 RENDERIZADO TRIDIMENSIONAL REVISADO */
           <div className="absolute inset-0 w-full h-full block touch-none">
             <Canvas camera={{ position: [boundingBox.minX + boundingBox.w/2, hMuros + 5, boundingBox.minY + boundingBox.l + 6], fov: 42 }} shadows style={{ position: 'absolute' }}>
               <Sky sunPosition={[140, 45, 50]} inclination={0.6} azimuth={0.25} />
@@ -553,7 +553,7 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   })}
                 </group>
 
-                {/* 🏠 TECHO PRINCIPAL (MANTIENE SU TAMAÑO FIJO BASE) */}
+                {/* 🏠 TECHO PRINCIPAL A DOS AGUAS */}
                 <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros, boundingBox.minY + boundingBox.l / 2]}>
                   <mesh position={[-boundingBox.w / 4, 0.70, 0]} rotation={[0, 0, 0.32]} castShadow>
                     <boxGeometry args={[boundingBox.w / 1.8, 0.06, boundingBox.l + 0.4]} />
@@ -565,11 +565,14 @@ export default function InteractiveFloorPlan({ options }: InteractiveFloorPlanPr
                   </mesh>
                 </group>
 
-                {/* ⛱️ NUEVO ALERO INDEPENDIENTE: Va por debajo de la caída del techo base (Y inferior) */}
+                {/* ⛱️ ALERO REALISTA BAJO EL TECHO (Nace estricto en el frente del muro) */}
                 {numEave > 0 && (
-                  <group position={[boundingBox.minX + boundingBox.w / 2, floorThickness + hMuros - 0.15, boundingBox.minY + boundingBox.l / 2]}>
-                    {/* Alero Frontal (Techando la zona del caminador del frente) */}
-                    <mesh position={[0, 0.1, (boundingBox.l / 2) + (numEave / 2)]} rotation={[0.12, 0, 0]} castShadow>
+                  <group position={[
+                    boundingBox.minX + boundingBox.w / 2, 
+                    floorThickness + hMuros - 0.22, // ⏬ Altura rebajada: pasa por debajo de la caída del techo principal
+                    boundingBox.minY + boundingBox.l // 🚪 Centrado exactamente en la línea del muro frontal
+                  ]}>
+                    <mesh position={[0, 0, numEave / 2]} rotation={[0.15, 0, 0]} castShadow>
                       <boxGeometry args={[boundingBox.w + (numWalkway * 2), 0.04, numEave]} />
                       <meshStandardMaterial color={roofColor} roughness={0.5} />
                     </mesh>
